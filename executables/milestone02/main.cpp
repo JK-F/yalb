@@ -1,11 +1,12 @@
+#include "Kokkos_Printf.hpp"
 #include <Kokkos_Core.hpp>
-#include <iostream>
-#include <iomanip>
+#include <Kokkos_Random.hpp>
 
 #define NUM_TIMESTEPS 100
 #define NUM_DIRECTIONS 9
 #define SIZE_X 15
 #define SIZE_Y 10
+#define UNIT 1
 
 enum Direction {
   // No Y movement
@@ -23,8 +24,8 @@ enum Direction {
 };
 
 typedef Kokkos::View<double**>      DENSITY;
-typedef Kokkos::View<Direction**>   VELOCITY;
 typedef Kokkos::View<double***>     DISTRIB;
+typedef Kokkos::View<double**>      VELOCITY;
 
 
 std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir) {
@@ -34,12 +35,12 @@ std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir) 
     case LEFT:
     case UP_LEFT:
     case DOWN_LEFT:
-      new_x = x - 1;
+      new_x = x - UNIT;
       break;
     case RIGHT:
     case DOWN_RIGHT:
     case UP_RIGHT:
-      new_x = x - 1;
+      new_x = x + UNIT;
       break;
   }
   switch (dir)
@@ -47,15 +48,15 @@ std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir) 
     case UP:
     case UP_LEFT:
     case UP_RIGHT:
-      new_y = y + 1;
+      new_y = y + UNIT;
       break;
     case DOWN:
     case DOWN_LEFT:
     case DOWN_RIGHT:
-      new_y = y - 1;
+      new_y = y - UNIT;
       break;
   }
-  return std::tuple(new_x, new_y);
+  return std::tuple((new_x + SIZE_X) % SIZE_X, (new_y + SIZE_Y) % SIZE_Y);
 }
 
 // Next step:
@@ -66,9 +67,13 @@ std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir) 
 
 
 void init_distribution(DISTRIB f) {
+  Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   auto policy = Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
   Kokkos::parallel_for("INIT_DENSITY", policy, KOKKOS_LAMBDA (const int &x, const int &y, const int &dir) {
-    f(x,y,dir) = static_cast<double>(x * y);
+    auto generator = random_pool.get_state();
+    double val = generator.drand(0., 1000.);
+    f(x,y,dir) = val;
+    random_pool.free_state(generator);
   });
 }
 
@@ -83,96 +88,87 @@ void calc_density(DENSITY result, DISTRIB f) {
   });
 }
 
-double calc_velocity(DENSITY density, DISTRIB f, int x, int y) {
-  double rho = density(x, y);
-  double result;
-  Kokkos::parallel_reduce("CALC_DENSITY_REDUCE", NUM_DIRECTIONS, KOKKOS_LAMBDA (const int &dir, double &lsum) {
-    lsum += f(x, y, dir);
-  }, result);
-  return result / rho;
+inline const double y_part(Direction direction) {
+  switch (direction) {
+  case UP:
+  case UP_RIGHT:
+  case UP_LEFT:
+    return 1;
+  case DOWN:
+  case DOWN_LEFT:
+  case DOWN_RIGHT:
+    return -1;
+  case NONE:
+  case RIGHT:
+  case LEFT:
+    return 0;
+  }
+}
+
+inline const double x_part(Direction direction) {
+  switch (direction) {
+  case RIGHT:
+  case DOWN_RIGHT:
+  case UP_RIGHT:
+    return 1;
+  case LEFT:
+  case DOWN_LEFT:
+  case UP_LEFT:
+    return -1;
+  case NONE:
+  case UP:
+  case DOWN:
+    return 0;
+  }
+}
+
+void calc_avg_velocity(VELOCITY vel_x, VELOCITY vel_y, DENSITY density, DISTRIB f) {
+  auto policy = Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {SIZE_X, SIZE_Y});
+  Kokkos::parallel_for("CALC_DENSITY_FOR", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
+    double rho = density(x, y);
+    for (auto dir = 0; dir < NUM_DIRECTIONS; dir++) {
+      vel_y(x, y) = y_part((Direction) dir) * f(x, y, dir) / rho;
+      vel_x(x, y) = x_part((Direction) dir) * f(x, y, dir) / rho;
+    }
+  });
 }
 
 void streaming(DISTRIB f) {
   DISTRIB result = DISTRIB("DensityProbabilityFunction", SIZE_X, SIZE_Y, NUM_DIRECTIONS);
   auto policy = Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
+
   Kokkos::parallel_for("INIT_DENSITY", policy, KOKKOS_LAMBDA (const int &x, const int &y, const int &dir) {
     auto [new_x, new_y] = updated_coords(x, y, dir);
-    if (0 <= new_x && new_x < SIZE_X && 0 <= new_y && new_y < SIZE_Y) {
-      result(new_x,new_y,dir) = f(x, y, dir);
-    }
+    result(new_x,new_y,dir) = f(x, y, dir);
   });
   Kokkos::kokkos_swap(f, result);
 }
 
-void print_distribution(DISTRIB f, int timestep) {
-  // 1. Mirror and bring data to the host (CPU)
-  auto f_host = Kokkos::create_mirror_view(f);
-  Kokkos::deep_copy(f_host, f);
-
-  // 2. Clear terminal screen and reset cursor (ANSI escape codes)
-  // This creates a smooth "live update" animation in your terminal
-  std::cout << "\033[2J\033[H"; 
-  
-  std::cout << "====================================================\n";
-  std::cout << " LATTICE BOLTZMANN SIMULATION | TIMESTEP: " << std::setw(3) << timestep << "\n";
-  std::cout << "====================================================\n\n";
-
-  // Print top border of the grid
-  std::cout << "   +";
-  for (int x = 0; x < SIZE_X; ++x) std::cout << "---+";
-  std::cout << "\n";
-
-  // 3. Loop through the grid (Y-axis inverted visually so UP is actually up)
-  for (int y = SIZE_Y - 1; y >= 0; --y) {
-    std::cout << std::setw(2) << y << " |"; // Row index
-    
-    for (int x = 0; x < SIZE_X; ++x) {
-      // Calculate local density (sum of all 9 directions) for this cell
-      double local_density = 0.0;
-      for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {
-        local_density += f_host(x, y, dir);
-      }
-
-      // Choose a character based on the density intensity
-      // Adjust thresholds depending on how your feq behaves later!
-      char cell_char = ' ';
-      if (local_density > 100.0)      cell_char = '#'; // High density
-      else if (local_density > 50.0)  cell_char = 'X';
-      else if (local_density > 10.0)  cell_char = 'o';
-      else if (local_density > 0.0)   cell_char = '.'; // Low density
-      else                            cell_char = ' '; // Empty
-
-      // Center the character inside the grid cell block
-      std::cout << " " << cell_char << " |";
-    }
-    
-    // Print row separators
-    std::cout << "\n   +";
-    for (int x = 0; x < SIZE_X; ++x) std::cout << "---+";
-    std::cout << "\n";
-  }
-
-  // Print X-axis labels at the bottom
-  std::cout << "    ";
-  for (int x = 0; x < SIZE_X; ++x) {
-    std::cout << " " << std::setw(2) << x << " ";
-  }
-  std::cout << "\n\n";
-  
-  // 4. Sleep for a moment so human eyes can see the frame update
-  // Requires #include <chrono> and #include <thread>
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+void print_dist(DISTRIB f, uint timestep) {
+  Kokkos::printf("\"%d\": [", timestep);
+  auto policy = Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
+  Kokkos::parallel_for("INIT_DENSITY", policy, KOKKOS_LAMBDA (const int &x, const int &y, const int &dir) {
+      Kokkos::printf("[%d, %d, %d, %f],", x, y, dir, f(x, y, dir));
+  });
+  Kokkos::printf("],");
 }
 
+// Print X-axis labels at the bottom
 void run_simulation() {
   DISTRIB f("f", SIZE_X, SIZE_Y, NUM_DIRECTIONS);
-  // DENSITY density("density", SIZE_X, SIZE_Y);
-  // VELOCITY velocity("velocity", SIZE_X, SIZE_Y);
+  DENSITY density("density", SIZE_X, SIZE_Y);
+  VELOCITY vel_x("X Velocity", SIZE_X, SIZE_Y);
+  VELOCITY vel_y("Y Velocity", SIZE_X, SIZE_Y);
+  calc_density(density, f);
   init_distribution(f);
+  Kokkos::printf("{");
   for (int i = 1; i <= NUM_TIMESTEPS; ++i) {
-    print_distribution(f, i);
     streaming(f);
+    calc_density(density, f);
+    calc_avg_velocity(vel_x, vel_y, density, f);
+    print_dist(f, i);
   }
+  Kokkos::printf("}");
 }
 
 int main(int argc, char* argv[]) {
