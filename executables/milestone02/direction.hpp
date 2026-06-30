@@ -1,4 +1,5 @@
 #include <tuple>
+#define NUM_DIRECTIONS 9
 
 enum Direction {
   // No Y movement
@@ -18,4 +19,5 @@ enum Direction {
 
 const double y_part(Direction direction);
 const double x_part(Direction direction);
-std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir);
+const double weight(Direction direction);
+std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir, const unsigned int size_x, const unsigned int size_y);
