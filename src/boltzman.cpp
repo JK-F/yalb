@@ -60,8 +60,8 @@ void BoltzmanLattice::calc_avg_velocity() {
   Kokkos::parallel_for("CALC_DENSITY_FOR", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
     double rho = density(x, y);
     for (auto dir = 0; dir < NUM_DIRECTIONS; dir++) {
-      avg_velocity(x, y, 0) = x_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
-      avg_velocity(x, y, 1) = y_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
+      avg_velocity(x, y, 0) += x_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
+      avg_velocity(x, y, 1) += y_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
     }
   });
 }
@@ -100,7 +100,7 @@ void BoltzmanLattice::print_dist(uint timestep) {
 
 void BoltzmanLattice::print_density(uint timestep) {
   for (int x = 0; x < SIZE_X; x++) {
-    for (int y = 0; x < SIZE_Y; y++) {
+    for (int y = 0; y < SIZE_Y; y++) {
         density_file 
           << timestep << ","
           << x << ","

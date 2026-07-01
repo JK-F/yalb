@@ -10,9 +10,19 @@ void run_simulation() {
   simulation.random_distrib();
   simulation.open_files("./data/03distrib.csv", "./data/03density.csv");
 
+  // Print initial
+  simulation.print_dist(0);
+  simulation.print_density(0);
+
   for (int i = 1; i <= NUM_TIMESTEPS; ++i) {
     simulation.streaming();
+    simulation.calc_density();
+    simulation.calc_avg_velocity();
+    simulation.collision();
+
     simulation.print_dist(i);
+    simulation.print_density(i);
+
   }
 }
 
