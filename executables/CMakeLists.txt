@@ -21,8 +21,23 @@ target_include_directories(milestone02 PRIVATE ../src)
 target_include_directories(milestone03 PRIVATE ../src)
 
 # 3. Link the necessary dependencies to both targets
-target_link_libraries(milestone02 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos GTest::gtest)
-target_link_libraries(milestone03 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos GTest::gtest)
+target_link_libraries(milestone02 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos)
+target_link_libraries(milestone03 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos)
+
+# 4. Test executables
+add_executable(test_milestone02 test_milestone02.cpp)
+add_executable(test_milestone03 test_milestone03.cpp)
+
+target_include_directories(test_milestone02 PRIVATE ../src)
+target_include_directories(test_milestone03 PRIVATE ../src)
+
+target_link_libraries(test_milestone02 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos GTest::gtest)
+target_link_libraries(test_milestone03 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos GTest::gtest)
 
 # Enable CTest framework for this subdirectory scope
 include(CTest)
+
+# 5. Register tests with CTest
+include(GoogleTest)
+gtest_discover_tests(test_milestone02)
+gtest_discover_tests(test_milestone03)
