@@ -66,15 +66,15 @@ void BoltzmanLattice::calc_avg_velocity() {
   });
 }
 
-void BoltzmanLattice::open_files() {
-  dist_file.open("./data/dist.csv", std::ios::out);
+void BoltzmanLattice::open_files(std::string dist_file_name, std::string density_file_name) {
+  dist_file.open(dist_file_name, std::ios::out);
         dist_file
           << "timestep,"
           << "x,"
           << "y,"
           << "dir,"
           << "dist_value" << std::endl;
-  density_file.open("./data/density.csv", std::ios::out);
+  density_file.open(density_file_name, std::ios::out);
         density_file
           << "timestep,"
           << "x,"

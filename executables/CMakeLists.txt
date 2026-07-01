@@ -1,8 +1,28 @@
-# add_executable(monte_carlo monte_carlo_pi.cpp)
-# target_link_libraries(monte_carlo PUBLIC MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# add_executable(main main.cpp)
-# target_link_libraries(main PRIVATE lib)
+# GTest dependency
+find_package(GTest)
+if(NOT GTest_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+      googletest
+      URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+    )
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+endif()
 
-# add_subdirectory(milestone01)
-add_subdirectory(milestone02)
+# 1. Define the executable targets
+add_executable(milestone02 milestone02.cpp)
+add_executable(milestone03 milestone03.cpp)
+
+# 2. Apply include directories to both targets
+target_include_directories(milestone02 PRIVATE ../src)
+target_include_directories(milestone03 PRIVATE ../src)
+
+# 3. Link the necessary dependencies to both targets
+target_link_libraries(milestone02 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos GTest::gtest)
+target_link_libraries(milestone03 PRIVATE boltzman MPI::MPI_CXX Eigen3::Eigen Kokkos::kokkos GTest::gtest)
+
+# Enable CTest framework for this subdirectory scope
+include(CTest)

@@ -45,6 +45,6 @@ endif()
 
 enable_testing()
 
-# add_subdirectory(src)
+add_subdirectory(src)
 add_subdirectory(executables)
 # add_subdirectory(tests)

@@ -2,5 +2,7 @@ all:
 	cmake --build build
 init:
 	cmake -B build
-run:
-	./build/executables/milestone02/milestone02 
+run2:
+	./build/executables/milestone02
+run3:
+	./build/executables/milestone03

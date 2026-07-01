@@ -1,5 +1,6 @@
 #include <Kokkos_Core.hpp>
 #include <fstream>
+#include <string>
 #include "direction.hpp"
 
 typedef Kokkos::View<double**>      DENSITY;
@@ -32,7 +33,7 @@ class BoltzmanLattice {
   void calc_avg_velocity();
   double calc_feq(const uint x, const uint y, const Direction dir);
 
-  void open_files();
+  void open_files(std::string dist_file_name, std::string density_file_name);
   void print_dist(uint timestep);
   void print_density(uint timestep);
 };
