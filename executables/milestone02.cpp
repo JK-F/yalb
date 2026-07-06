@@ -4,7 +4,7 @@
 #define NUM_TIMESTEPS 100
 #define OMEGA_RELAXATION 0.1
 
-void run_shear_wave_simulation() {
+void run_simulation() {
   BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
   simulation.randomize_distrib();
   simulation.open_files("./data/02dist.csv", "/tmp/doesntmatter");
@@ -17,7 +17,7 @@ void run_shear_wave_simulation() {
 
 int main(int argc, char* argv[]) {
   Kokkos::initialize(argc, argv);
-  run_shear_wave_simulation();
+  run_simulation();
   Kokkos::finalize();
   return 0;
 }
