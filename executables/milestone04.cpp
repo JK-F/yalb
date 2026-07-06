@@ -7,7 +7,9 @@
 
 void run_shear_wave_simulation() {
   BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
+
   auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
+
   Kokkos::parallel_for("INIT_STEP", policy, [&] (const int &x, const int &y) {
     for (uint d = 0; d < NUM_DIRECTIONS; d++) {
       Direction dir = static_cast<Direction>(d);

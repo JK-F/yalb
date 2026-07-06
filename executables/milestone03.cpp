@@ -60,7 +60,8 @@ void run_randomized_simulation() {
 
 int main(int argc, char* argv[]) {
   Kokkos::initialize(argc, argv);
-  run_simulation();
+  run_perturbation_simulation();
+  run_randomized_simulation();
   Kokkos::finalize();
   return 0;
 }
