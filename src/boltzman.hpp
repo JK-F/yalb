@@ -5,7 +5,7 @@
 
 typedef Kokkos::View<double**>      DENSITY;
 typedef Kokkos::View<double***>     DISTRIB;
-typedef Kokkos::View<double***>     VELOCITY;
+typedef Kokkos::View<double**[2]>     VELOCITY;
 
 #define SIZE_X 15
 #define SIZE_Y 15
@@ -28,7 +28,8 @@ class BoltzmanLattice {
   void streaming();
   void collision();
 
-  void random_distrib();
+  void randomize_distrib();
+  void uniform_distrib(double);
   void calc_density();
   void calc_avg_velocity();
   double calc_feq(const uint x, const uint y, const Direction dir);

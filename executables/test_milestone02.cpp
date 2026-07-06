@@ -33,7 +33,7 @@ TEST(Milestone02, PeriodicValidation) {
 
 TEST(Milestone02, MassConservation) {
   BoltzmanLattice sim(0.5, std::tuple(0.0, 0.0) ,0.0);
-  sim.random_distrib();
+  sim.randomize_distrib();
   double weight = 0.;
   const auto policy = Kokkos::MDRangePolicy({0,0,0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
   Kokkos::parallel_reduce(
@@ -50,7 +50,7 @@ TEST(Milestone02, MassConservation) {
             acc += sim.distribution(x, y, dir);
         },
         running_weight);
-    assert(abs(weight - running_weight) < EPSILON);
+    ASSERT_LT(abs(weight - running_weight), EPSILON);
   }
 }
 

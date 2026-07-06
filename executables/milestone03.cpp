@@ -5,12 +5,21 @@
 #define NUM_TIMESTEPS 100
 #define OMEGA_RELAXATION 0.1
 
-void run_simulation() {
+void run_shear_wave_simulation() {
   BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
-  simulation.random_distrib();
-  simulation.open_files("./data/03distrib.csv", "./data/03density.csv");
+  auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
+  Kokkos::parallel_for("INIT_STEP", policy, [&] (const int &x, const int &y) {
+    for (uint d = 0; d < NUM_DIRECTIONS; d++) {
+      Direction dir = static_cast<Direction>(d);
+      double val = simulation.calc_feq(x, y, dir);
+      simulation.distribution(x,y,dir) = val;
+    }
+  });
+
+  simulation.open_files("./data/04_distrib.csv", "./data/04_density.csv");
 
   // Print initial
+  simulation.calc_density();
   simulation.print_dist(0);
   simulation.print_density(0);
 
@@ -28,7 +37,7 @@ void run_simulation() {
 
 int main(int argc, char* argv[]) {
   Kokkos::initialize(argc, argv);
-  run_simulation();
+  run_shear_wave_simulation();
   Kokkos::finalize();
   return 0;
 }

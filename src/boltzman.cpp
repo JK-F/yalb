@@ -9,7 +9,7 @@ BoltzmanLattice::BoltzmanLattice(double _omega, std::tuple<double, double> _u, d
   distribution = DISTRIB { "DISTRIBUTION", SIZE_X, SIZE_Y, NUM_DIRECTIONS };
   buffer = DISTRIB { "BUFFER_DISTRIBUTION", SIZE_X, SIZE_Y, NUM_DIRECTIONS };
   density = DENSITY { "DENSITY", SIZE_X, SIZE_Y };
-  avg_velocity = VELOCITY { "VELOCITY", SIZE_X, SIZE_Y, 2};
+  avg_velocity = VELOCITY { "VELOCITY", SIZE_X, SIZE_Y};
   omega = _omega;
   auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
   Kokkos::parallel_for(policy, KOKKOS_LAMBDA (const int &x, const int &y) {
@@ -22,16 +22,19 @@ BoltzmanLattice::BoltzmanLattice(double _omega, std::tuple<double, double> _u, d
 }
 
 void BoltzmanLattice::streaming() {
-  auto policy = Kokkos::MDRangePolicy({0, 0, 0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
+  auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
 
-  Kokkos::parallel_for("Streaming", policy, KOKKOS_LAMBDA (const int &x, const int &y, const int &dir) {
-    auto [new_x, new_y] = updated_coords(x, y, dir, SIZE_X, SIZE_Y);
-    buffer(new_x,new_y,dir) = distribution(x, y, dir);
+  Kokkos::parallel_for("Streaming", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
+    for (int i = 0; i < NUM_DIRECTIONS; i++) {
+      auto dir = static_cast<Direction>(i);
+      auto [new_x, new_y] = updated_coords(x, y, dir, SIZE_X, SIZE_Y);
+      buffer(new_x,new_y,dir) = distribution(x, y, dir);
+    }
   });
   Kokkos::kokkos_swap(distribution, buffer);
 }
 
-void BoltzmanLattice::random_distrib() {
+void BoltzmanLattice::randomize_distrib() {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
   Kokkos::parallel_for("INIT_STEP", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
@@ -40,6 +43,15 @@ void BoltzmanLattice::random_distrib() {
       double val = generator.drand(0., 1000.);
       distribution(x,y,dir) = val;
       random_pool.free_state(generator);
+    }
+  });
+}
+
+void BoltzmanLattice::uniform_distrib(double d) {
+  auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
+  Kokkos::parallel_for("INIT_STEP", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
+    for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
+      distribution(x,y,dir) = d;
     }
   });
 }
@@ -59,6 +71,8 @@ void BoltzmanLattice::calc_avg_velocity() {
   auto policy = Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {SIZE_X, SIZE_Y});
   Kokkos::parallel_for("CALC_DENSITY_FOR", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
     double rho = density(x, y);
+      avg_velocity(x, y, 0) = 0;
+      avg_velocity(x, y, 1) = 0;
     for (auto dir = 0; dir < NUM_DIRECTIONS; dir++) {
       avg_velocity(x, y, 0) += x_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
       avg_velocity(x, y, 1) += y_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
@@ -110,22 +124,26 @@ void BoltzmanLattice::print_density(uint timestep) {
   }
 }
 
-double BoltzmanLattice::calc_feq(const uint x, const uint y, const Direction dir) {
+inline double BoltzmanLattice::calc_feq(const uint x, const uint y, const Direction dir) {
     double rho = density(x, y);
-    double w_i = weight(dir);
     double ux = avg_velocity(x, y, 0);
     double uy = avg_velocity(x, y, 1);
-    double cu = x_part(dir) * ux + y_part(dir) * uy;
     double magnitude_squared = ux * ux + uy * uy;
-    double sum = 1. + 3. * cu + 9. / 2. * cu * cu + 3. / 2. * magnitude_squared;
+
+    double w_i = weight(dir);
+    double cu = x_part(dir) * ux + y_part(dir) * uy;
+    double sum = 1. + 3. * cu + 9. / 2. * cu * cu - 3. / 2. * magnitude_squared;
     return w_i * rho * sum;
 }
 
 void BoltzmanLattice::collision() {
-  auto policy = Kokkos::MDRangePolicy({0, 0, 0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
-  Kokkos::parallel_for("Streaming", policy, KOKKOS_LAMBDA (const int &x, const int &y, const int &dir) {
-    double feq = calc_feq(x, y, static_cast<Direction>(dir));
-    distribution(x, y, dir) += omega * feq;
+  auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
+  Kokkos::parallel_for("Streaming", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
+    for (uint i = 0; i < NUM_DIRECTIONS; i++) {
+      auto dir = static_cast<Direction>(i);
+      double feq = calc_feq(x, y, static_cast<Direction>(dir));
+      distribution(x, y, dir) += omega * (feq - distribution(x, y, dir)) ;
+    }
   });
 }
 
