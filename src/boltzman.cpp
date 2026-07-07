@@ -15,8 +15,8 @@ BoltzmanLattice::BoltzmanLattice(double _omega, std::tuple<double, double> _u, d
   Kokkos::parallel_for(policy, KOKKOS_LAMBDA (const int &x, const int &y) {
     // |u| = sqrt(ux^2 + uy^2) = sqrt(0.09 + 0.09 = 0.18) < 0.5
     auto [ux, uy] = _u;
-    avg_velocity(x, y, 0) = ux;
-    avg_velocity(x, y, 1) = uy;
+    avg_velocity(x, y, X_DIR) = ux;
+    avg_velocity(x, y, Y_DIR) = uy;
     density(x, y) = _rho;
   });
 }

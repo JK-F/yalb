@@ -8,7 +8,8 @@
 void run_perturbation_simulation() {
   BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
   simulation.uniform_distrib(1.0);
-  auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
+  uint denom = 10;
+  auto policy = Kokkos::MDRangePolicy({SIZE_X / 2 - SIZE_X / denom , SIZE_Y / 2 - SIZE_Y / denom}, {SIZE_X / 2 + SIZE_X / denom, SIZE_Y / 2 + SIZE_Y / denom});
   Kokkos::parallel_for("INIT_STEP", policy, [&] (const int &x, const int &y) {
     for (uint d = 0; d < NUM_DIRECTIONS; d++) {
       Direction dir = static_cast<Direction>(d);

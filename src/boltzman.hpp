@@ -7,6 +7,9 @@ typedef Kokkos::View<double**>      DENSITY;
 typedef Kokkos::View<double***>     DISTRIB;
 typedef Kokkos::View<double**[2]>     VELOCITY;
 
+#define X_DIR 0
+#define Y_DIR 1
+
 #define SIZE_X 15
 #define SIZE_Y 15
 
