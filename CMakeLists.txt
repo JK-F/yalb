@@ -40,6 +40,7 @@ if(NOT Kokkos_FOUND)
     )
     set(Kokkos_ENABLE_TESTS OFF CACHE BOOL "Disable Kokkos tests" FORCE)
     set(Kokkos_ENABLE_EXAMPLES OFF CACHE BOOL "Disable Kokkos examples" FORCE)
+    set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable OpenMP backend" FORCE)
     FetchContent_MakeAvailable(kokkos)
 endif()
 

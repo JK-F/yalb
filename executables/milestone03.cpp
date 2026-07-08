@@ -1,12 +1,14 @@
 #include <Kokkos_Core.hpp>
 #include "boltzman.hpp"
-#include <tuple>
 
 #define NUM_TIMESTEPS 100
 #define OMEGA_RELAXATION 0.1
 
+#define SIZE_X 30
+#define SIZE_Y 30
+
 void run_perturbation_simulation() {
-  BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
+  BoltzmanLattice simulation(SIZE_X, SIZE_Y, OMEGA_RELAXATION, 0.3, 0.3, 0.5);
   simulation.uniform_distrib(1.0);
   uint denom = 10;
   auto policy = Kokkos::MDRangePolicy({SIZE_X / 2 - SIZE_X / denom , SIZE_Y / 2 - SIZE_Y / denom}, {SIZE_X / 2 + SIZE_X / denom, SIZE_Y / 2 + SIZE_Y / denom});
@@ -38,7 +40,7 @@ void run_perturbation_simulation() {
 }
 
 void run_randomized_simulation() {
-  BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
+  BoltzmanLattice simulation(SIZE_X, SIZE_Y, OMEGA_RELAXATION, 0.3, 0.3, 0.5);
   simulation.randomize_distrib();
   simulation.open_files("./data/03_random");
 

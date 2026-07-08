@@ -5,23 +5,26 @@
 
 #define EPSILON 0.00001
 
+#define SIZE_X 15
+#define SIZE_Y 15
+
 TEST(Milestone02, PeriodicValidation) {
   const double val = 14.1293;
-  BoltzmanLattice sim(0.5, std::tuple(0.0, 0.0) ,0.0);
+  BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, 0.0, 0.0 ,0.0);
   Direction dir = Direction::RIGHT; 
-  for (int x = 0; x < SIZE_X; x++) {
-    for (int y = 0; y < SIZE_Y; y++) {
+  for (int x = 0; x < sim.size_x; x++) {
+    for (int y = 0; y < sim.size_y; y++) {
         sim.distribution(0, y, dir) = 0;
     }
   }
-  for (int y = 0; y < SIZE_Y; y++) {
+  for (int y = 0; y < sim.size_y; y++) {
       sim.distribution(0, y, dir) = val;
   }
-  for (int i = 0; i < SIZE_X; i++) {
+  for (int i = 0; i < sim.size_x; i++) {
     sim.streaming();
   }
-  for (int x = 0; x < SIZE_X; x++) {
-    for (int y = 0; y < SIZE_Y; y++) {
+  for (int x = 0; x < sim.size_x; x++) {
+    for (int y = 0; y < sim.size_y; y++) {
       if (x == 0)
         assert(sim.distribution(x, y, dir) == val);
       else
@@ -32,22 +35,25 @@ TEST(Milestone02, PeriodicValidation) {
 
 
 TEST(Milestone02, MassConservation) {
-  BoltzmanLattice sim(0.5, std::tuple(0.0, 0.0) ,0.0);
+  BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, 0.0, 0.0 ,0.0);
   sim.randomize_distrib();
   double weight = 0.;
-  const auto policy = Kokkos::MDRangePolicy({0,0,0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
   Kokkos::parallel_reduce(
-      policy, [&](const int &x, const int &y, const int &dir, double &acc) {
-          acc += sim.distribution(x, y, dir);
+      sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+        for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
+            acc += sim.distribution(x, y, dir);
+        }
       },
       weight);
 
-  for (int i = 0; i < SIZE_X; i++) {
+  for (int i = 0; i < sim.size_x; i++) {
     sim.streaming();
     double running_weight = 0.;
     Kokkos::parallel_reduce(
-        policy, [&](const int &x, const int &y, const int &dir, double &acc) {
-            acc += sim.distribution(x, y, dir);
+        sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+          for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
+              acc += sim.distribution(x, y, dir);
+          }
         },
         running_weight);
     ASSERT_LT(abs(weight - running_weight), EPSILON);

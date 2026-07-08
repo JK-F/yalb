@@ -16,7 +16,6 @@ enum Direction {
   DOWN_RIGHT = 8,
 };
 
-
 const double y_part(Direction direction);
 const double x_part(Direction direction);
 const double weight(Direction direction);

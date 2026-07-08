@@ -3,6 +3,7 @@
 .idea
 data/*.csv
 data/*.mp4
+data/*.gif
 
 # -------------- Below are genereated exclusion patterns ----------------------
 

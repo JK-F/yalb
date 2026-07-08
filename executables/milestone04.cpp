@@ -1,25 +1,25 @@
 #include <Kokkos_Core.hpp>
-#include "Kokkos_MathematicalConstants.hpp"
 #include "Kokkos_MathematicalFunctions.hpp"
 #include "boltzman.hpp"
 #include <sys/types.h>
-#include <tuple>
+
+#define SIZE_X 30
+#define SIZE_Y 30
 
 #define NUM_TIMESTEPS 2000
 #define OMEGA_RELAXATION 1.5
 
 void run_shear_wave_simulation() {
-  BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
-
+  BoltzmanLattice simulation(SIZE_X, SIZE_Y, OMEGA_RELAXATION, 0.3, 0.3, 0.5);
   // initialize shear wave
-  auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
+
 
   // Velocity as a shear wave
   // Assert f = feq
-//
+
   double eps = 0.01;
   double rho = 1;
-  Kokkos::parallel_for("INIT_STEP", policy, [&] (const int &x, const int &y) {
+  Kokkos::parallel_for("INIT_STEP", simulation.all_nodes_policy(), [&] (const int &x, const int &y) {
     for (uint d = 0; d < NUM_DIRECTIONS; d++) {
       Direction dir = static_cast<Direction>(d);
       double k = 2 * Kokkos::numbers::pi / SIZE_Y;
@@ -30,14 +30,7 @@ void run_shear_wave_simulation() {
     }
   });
 
-  Kokkos::parallel_for("INIT_STEP", policy, [&] (const int &x, const int &y) {
-    for (uint d = 0; d < NUM_DIRECTIONS; d++) {
-      Direction dir = static_cast<Direction>(d);
-      double val = simulation.calc_feq(x, y, dir);
-      simulation.distribution(x,y,dir) = val;
-    }
-  });
-
+  simulation.feq_distrib();
   simulation.open_files("./data/04");
 
   // Print initial

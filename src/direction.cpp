@@ -1,4 +1,5 @@
 #include "direction.hpp"
+#include <cassert>
 #include <tuple>
 
 #define UNIT 1
@@ -87,3 +88,4 @@ const double weight(Direction direction) {
   double denom = direction <= 4 ? 9 : 36;
   return num / denom;
 }
+

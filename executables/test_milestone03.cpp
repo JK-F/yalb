@@ -1,18 +1,21 @@
 #include <Kokkos_Core.hpp>
 #include <gtest/gtest.h>
 #include "boltzman.hpp"
-#include "impl/Kokkos_Profiling.hpp"
 #include <cassert>
 #define EPSILON 0.00001
 
+#define SIZE_X 15
+#define SIZE_Y 15
+
 TEST(Milestone03, MassConservation) {
-  BoltzmanLattice sim(0.5, std::tuple(0.3, 0.3), 0.1);
+  BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, 0.3, 0.3, 0.1);
   sim.randomize_distrib();
   double weight = 0.;
-  const auto policy = Kokkos::MDRangePolicy({0,0,0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
-  Kokkos::parallel_reduce(
-      policy, [&](const int &x, const int &y, const int &dir, double &acc) {
-          acc += sim.distribution(x, y, dir);
+    Kokkos::parallel_reduce(
+      sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+        for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
+            acc += sim.distribution(x, y, dir);
+        }
       },
       weight);
 
@@ -23,19 +26,20 @@ TEST(Milestone03, MassConservation) {
     sim.collision();
     double running_weight = 0.;
     Kokkos::parallel_reduce(
-        policy, [&](const int &x, const int &y, const int &dir, double &acc) {
+      sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+        for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
             acc += sim.distribution(x, y, dir);
-        },
-        running_weight);
+        }
+      },
+      running_weight);
     ASSERT_LT(abs(weight - running_weight), EPSILON);
   }
 }
 
 TEST(Milestone03, MomentumConservation) {
-  BoltzmanLattice sim(0.5, std::tuple(0.3, 0.3), 0.1);
+  BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, 0.3, 0.3, 0.1);
   sim.randomize_distrib();
-  const auto policy_2d = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
-  const auto policy_3d = Kokkos::MDRangePolicy({0, 0, 0}, {SIZE_X, SIZE_Y, NUM_DIRECTIONS});
+  const auto policy_2d = sim.all_nodes_policy();
 
   for (int i = 1; i <= 100; ++i) {
     sim.streaming();
@@ -51,11 +55,13 @@ TEST(Milestone03, MomentumConservation) {
 
     double c_f_x = 0, c_f_y = 0;
     Kokkos::parallel_reduce(
-        policy_3d, [&](int x, int y, int dir, double& mx, double& my) {
-            Direction d = static_cast<Direction>(dir);
-            double f = sim.distribution(x, y, dir);
-            mx += x_part(d) * f;
-            my += y_part(d) * f;
+        policy_2d, [&](int x, int y, double& mx, double& my) {
+            for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
+                Direction d = static_cast<Direction>(dir);
+                double f = sim.distribution(x, y, dir);
+                mx += x_part(d) * f;
+                my += y_part(d) * f;
+            }
         }, Kokkos::Sum<double>(c_f_x), Kokkos::Sum<double>(c_f_y));
 
     ASSERT_LT(abs(rho_u_x - c_f_x), EPSILON);
@@ -72,11 +78,13 @@ TEST(Milestone03, MomentumConservation) {
         }, Kokkos::Sum<double>(rho_u_x), Kokkos::Sum<double>(rho_u_y));
 
     Kokkos::parallel_reduce(
-        policy_3d, [&](int x, int y, int dir, double& mx, double& my) {
-            Direction d = static_cast<Direction>(dir);
-            double f = sim.distribution(x, y, dir);
-            mx += x_part(d) * f;
-            my += y_part(d) * f;
+        policy_2d, [&](int x, int y, double& mx, double& my) {
+            for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
+                Direction d = static_cast<Direction>(dir);
+                double f = sim.distribution(x, y, dir);
+                mx += x_part(d) * f;
+                my += y_part(d) * f;
+            }
         }, Kokkos::Sum<double>(c_f_x), Kokkos::Sum<double>(c_f_y));
 
     ASSERT_LT(abs(rho_u_x - c_f_x), EPSILON);
@@ -87,7 +95,7 @@ TEST(Milestone03, MomentumConservation) {
 TEST(Milestone03, EquilibriumFixpoint) {
   const double u = 0.3;
   const double rho = 0.1;
-  BoltzmanLattice sim(0.5, std::tuple(u, u), rho);
+  BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, u, u, rho);
   for (int x = 0; x < SIZE_X; x++) {
     for (int y = 0; y < SIZE_Y; y++) {
       for (int d = 0; d < NUM_DIRECTIONS; d++) {

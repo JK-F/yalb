@@ -4,8 +4,11 @@
 #define NUM_TIMESTEPS 100
 #define OMEGA_RELAXATION 0.1
 
+#define SIZE_X 15
+#define SIZE_Y 15
+
 void run_simulation() {
-  BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
+  BoltzmanLattice simulation(SIZE_X, SIZE_Y, OMEGA_RELAXATION, 0.3, 0.3, 0.5);
   simulation.randomize_distrib();
   simulation.open_files("./data/02");
 
