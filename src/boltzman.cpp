@@ -107,27 +107,19 @@ void BoltzmanLattice::calc_avg_velocity() {
 }
 
 void BoltzmanLattice::open_files(std::string prefix) {
-  dist_file.open(prefix + "_distrib.csv", std::ios::out);
-        dist_file
-          << "timestep,"
-          << "x,"
-          << "y,"
-          << "dir,"
-          << "dist_value" << std::endl;
-  density_file.open(prefix + "_density.csv", std::ios::out);
-        density_file
-          << "timestep,"
-          << "x,"
-          << "y,"
-          << "density_value" << std::endl;
-  velocity_file.open(prefix + "_velocity.csv", std::ios::out);
-        velocity_file
-          << "timestep,"
-          << "y,"
-          << "velocity_value" << std::endl;
+  this->file_prefix = prefix;
 }
 
 void BoltzmanLattice::print_dist(uint timestep) {
+  if (!dist_file) {
+    dist_file.open(this->file_prefix + "_distrib.csv", std::ios::out);
+    dist_file
+      << "timestep,"
+      << "x,"
+      << "y,"
+      << "dir,"
+      << "dist_value" << std::endl;
+  }
   for (int x = 0 + ghost_buffers; x < size_x -ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
       for (int dir = 0; dir < NUM_DIRECTIONS; dir++) {
@@ -144,6 +136,14 @@ void BoltzmanLattice::print_dist(uint timestep) {
 }
 
 void BoltzmanLattice::print_density(uint timestep) {
+  if (!density_file.is_open()) {
+    density_file.open(this->file_prefix + "_density.csv", std::ios::out);
+    density_file
+      << "timestep,"
+      << "x,"
+      << "y,"
+      << "density_value" << std::endl;
+  }
   for (int x = 0 + ghost_buffers; x < size_x -ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
         density_file 
@@ -157,6 +157,13 @@ void BoltzmanLattice::print_density(uint timestep) {
 }
 
 void BoltzmanLattice::print_velocity(uint timestep) {
+  if (!velocity_file.is_open()) {
+    velocity_file.open(this->file_prefix + "_velocity.csv", std::ios::out);
+    velocity_file
+      << "timestep,"
+      << "y,"
+      << "velocity_value" << std::endl;
+  }
   // Print all ux for all y and a fix x = N/2
   for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
       velocity_file

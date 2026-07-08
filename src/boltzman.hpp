@@ -14,6 +14,7 @@ typedef Kokkos::View<double**[2]>     VELOCITY;
 
 class BoltzmanLattice {
   private:
+  std::string file_prefix;
   std::ofstream dist_file;
   std::ofstream density_file;
   std::ofstream velocity_file;
