@@ -111,14 +111,14 @@ void BoltzmanLattice::open_files(std::string prefix) {
 }
 
 void BoltzmanLattice::print_dist(uint timestep) {
-  if (!dist_file) {
+  if (!dist_file.is_open()) {
     dist_file.open(this->file_prefix + "_distrib.csv", std::ios::out);
     dist_file
       << "timestep,"
       << "x,"
       << "y,"
       << "dir,"
-      << "dist_value" << std::endl;
+      << "dist_value" << '\n';
   }
   for (int x = 0 + ghost_buffers; x < size_x -ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
