@@ -1,15 +1,18 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
+#include <string>
 #include "boltzman.hpp"
 
 BoltzmanLattice::BoltzmanLattice(double _omega, std::tuple<double, double> _u, double _rho) {
   std::ofstream dist_file = {};
   std::ofstream density_file = {};
+  std::ofstream velocity_file = {};
 
   distribution = DISTRIB { "DISTRIBUTION", SIZE_X, SIZE_Y, NUM_DIRECTIONS };
   buffer = DISTRIB { "BUFFER_DISTRIBUTION", SIZE_X, SIZE_Y, NUM_DIRECTIONS };
   density = DENSITY { "DENSITY", SIZE_X, SIZE_Y };
   avg_velocity = VELOCITY { "VELOCITY", SIZE_X, SIZE_Y};
+
   omega = _omega;
   auto policy = Kokkos::MDRangePolicy({0, 0}, {SIZE_X, SIZE_Y});
   Kokkos::parallel_for(policy, KOKKOS_LAMBDA (const int &x, const int &y) {
@@ -71,31 +74,35 @@ void BoltzmanLattice::calc_avg_velocity() {
   auto policy = Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {SIZE_X, SIZE_Y});
   Kokkos::parallel_for("CALC_DENSITY_FOR", policy, KOKKOS_LAMBDA (const int &x, const int &y) {
     double rho = density(x, y);
-      avg_velocity(x, y, 0) = 0;
-      avg_velocity(x, y, 1) = 0;
+      avg_velocity(x, y, X_DIR) = 0;
+      avg_velocity(x, y, Y_DIR) = 0;
     for (auto dir = 0; dir < NUM_DIRECTIONS; dir++) {
-      avg_velocity(x, y, 0) += x_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
-      avg_velocity(x, y, 1) += y_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
+      avg_velocity(x, y, X_DIR) += x_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
+      avg_velocity(x, y, Y_DIR) += y_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
     }
   });
 }
 
-void BoltzmanLattice::open_files(std::string dist_file_name, std::string density_file_name) {
-  dist_file.open(dist_file_name, std::ios::out);
+void BoltzmanLattice::open_files(std::string prefix) {
+  dist_file.open(prefix + "_distrib.csv", std::ios::out);
         dist_file
           << "timestep,"
           << "x,"
           << "y,"
           << "dir,"
           << "dist_value" << std::endl;
-  density_file.open(density_file_name, std::ios::out);
+  density_file.open(prefix + "_density.csv", std::ios::out);
         density_file
           << "timestep,"
           << "x,"
           << "y,"
           << "density_value" << std::endl;
+  velocity_file.open(prefix + "_velocity.csv", std::ios::out);
+        velocity_file
+          << "timestep,"
+          << "y,"
+          << "velocity_value" << std::endl;
 }
-
 
 void BoltzmanLattice::print_dist(uint timestep) {
   for (int x = 0; x < SIZE_X; x++) {
@@ -124,10 +131,21 @@ void BoltzmanLattice::print_density(uint timestep) {
   }
 }
 
+void BoltzmanLattice::print_velocity(uint timestep) {
+  // Print all ux for all y and a fix x = N/2
+  for (int y = 0; y < SIZE_Y; y++) {
+      velocity_file
+        << timestep << ","
+        << y << ","
+        << avg_velocity(SIZE_X/2, y, X_DIR) << std::endl;
+  }
+}
+
+
 inline double BoltzmanLattice::calc_feq(const uint x, const uint y, const Direction dir) {
     double rho = density(x, y);
-    double ux = avg_velocity(x, y, 0);
-    double uy = avg_velocity(x, y, 1);
+    double ux = avg_velocity(x, y, X_DIR);
+    double uy = avg_velocity(x, y, Y_DIR);
     double magnitude_squared = ux * ux + uy * uy;
 
     double w_i = weight(dir);

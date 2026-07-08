@@ -7,7 +7,7 @@
 void run_simulation() {
   BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
   simulation.randomize_distrib();
-  simulation.open_files("./data/02dist.csv", "/tmp/doesntmatter");
+  simulation.open_files("./data/02");
 
   for (int i = 1; i <= NUM_TIMESTEPS; ++i) {
     simulation.streaming();

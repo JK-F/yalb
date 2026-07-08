@@ -10,13 +10,14 @@ typedef Kokkos::View<double**[2]>     VELOCITY;
 #define X_DIR 0
 #define Y_DIR 1
 
-#define SIZE_X 15
-#define SIZE_Y 15
+#define SIZE_X 30
+#define SIZE_Y 30
 
 class BoltzmanLattice {
   private:
   std::ofstream dist_file;
   std::ofstream density_file;
+  std::ofstream velocity_file;
 
   public:
   
@@ -37,7 +38,9 @@ class BoltzmanLattice {
   void calc_avg_velocity();
   double calc_feq(const uint x, const uint y, const Direction dir);
 
-  void open_files(std::string dist_file_name, std::string density_file_name);
+  void open_files(std::string prefix);
+
   void print_dist(uint timestep);
   void print_density(uint timestep);
+  void print_velocity(uint timestep);
 };

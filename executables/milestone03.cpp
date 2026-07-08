@@ -18,7 +18,7 @@ void run_perturbation_simulation() {
     }
   });
 
-  simulation.open_files("./data/03_distrib_pertub.csv", "./data/03_density_pertub.csv");
+  simulation.open_files("./data/03_pertub");
 
   // Print initial
   simulation.calc_density();
@@ -40,7 +40,7 @@ void run_perturbation_simulation() {
 void run_randomized_simulation() {
   BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
   simulation.randomize_distrib();
-  simulation.open_files("./data/03_distrib_random.csv", "./data/03_density_random.csv");
+  simulation.open_files("./data/03_random");
 
   // Print initial
   simulation.calc_density();

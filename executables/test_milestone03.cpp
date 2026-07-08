@@ -45,8 +45,8 @@ TEST(Milestone03, MomentumConservation) {
     double rho_u_x = 0, rho_u_y = 0;
     Kokkos::parallel_reduce(
         policy_2d, [&](int x, int y, double& mx, double& my) {
-            mx += sim.density(x, y) * sim.avg_velocity(x, y, 0);
-            my += sim.density(x, y) * sim.avg_velocity(x, y, 1);
+            mx += sim.density(x, y) * sim.avg_velocity(x, y, X_DIR);
+            my += sim.density(x, y) * sim.avg_velocity(x, y, Y_DIR);
         }, Kokkos::Sum<double>(rho_u_x), Kokkos::Sum<double>(rho_u_y));
 
     double c_f_x = 0, c_f_y = 0;
@@ -67,8 +67,8 @@ TEST(Milestone03, MomentumConservation) {
 
     Kokkos::parallel_reduce(
         policy_2d, [&](int x, int y, double& mx, double& my) {
-            mx += sim.density(x, y) * sim.avg_velocity(x, y, 0);
-            my += sim.density(x, y) * sim.avg_velocity(x, y, 1);
+            mx += sim.density(x, y) * sim.avg_velocity(x, y, X_DIR);
+            my += sim.density(x, y) * sim.avg_velocity(x, y, Y_DIR);
         }, Kokkos::Sum<double>(rho_u_x), Kokkos::Sum<double>(rho_u_y));
 
     Kokkos::parallel_reduce(
@@ -104,8 +104,8 @@ TEST(Milestone03, EquilibriumFixpoint) {
     sim.collision();
     for (int x = 0; x < SIZE_X; x++) {
       for (int y = 0; y < SIZE_Y; y++) {
-        ASSERT_LT(abs(u - sim.avg_velocity(x, y, 0)), EPSILON);
-        ASSERT_LT(abs(u - sim.avg_velocity(x, y, 1)), EPSILON);
+        ASSERT_LT(abs(u - sim.avg_velocity(x, y, X_DIR)), EPSILON);
+        ASSERT_LT(abs(u - sim.avg_velocity(x, y, Y_DIR)), EPSILON);
         ASSERT_LT(abs(rho - sim.density(x, y)), EPSILON);
       }
     }

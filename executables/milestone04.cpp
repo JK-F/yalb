@@ -5,8 +5,8 @@
 #include <sys/types.h>
 #include <tuple>
 
-#define NUM_TIMESTEPS 100
-#define OMEGA_RELAXATION 0.1
+#define NUM_TIMESTEPS 2000
+#define OMEGA_RELAXATION 1.5
 
 void run_shear_wave_simulation() {
   BoltzmanLattice simulation(OMEGA_RELAXATION, std::tuple(0.3, 0.3), 0.5);
@@ -25,8 +25,8 @@ void run_shear_wave_simulation() {
       double k = 2 * Kokkos::numbers::pi / SIZE_Y;
 
       simulation.density(x, y) = rho;
-      simulation.avg_velocity(x, y, Y_DIR) = 0;
       simulation.avg_velocity(x, y, X_DIR) = eps * Kokkos::sin(k * y);
+      simulation.avg_velocity(x, y, Y_DIR) = 0;
     }
   });
 
@@ -38,12 +38,13 @@ void run_shear_wave_simulation() {
     }
   });
 
-  simulation.open_files("./data/04_distrib.csv", "./data/04_density.csv");
+  simulation.open_files("./data/04");
 
   // Print initial
   simulation.calc_density();
   simulation.print_dist(0);
   simulation.print_density(0);
+  simulation.print_velocity(0);
 
   for (int i = 1; i <= NUM_TIMESTEPS; ++i) {
     simulation.streaming();
@@ -53,6 +54,9 @@ void run_shear_wave_simulation() {
 
     simulation.print_dist(i);
     simulation.print_density(i);
+    if (i % 300 == 0) {
+      simulation.print_velocity(i);
+    }
 
   }
 }
