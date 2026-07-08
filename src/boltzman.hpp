@@ -40,11 +40,6 @@ class BoltzmanLattice {
   void collision();
   void bounce_back();
 
-  inline Kokkos::MDRangePolicy<Kokkos::Rank<2>> all_nodes_policy() {
-    return Kokkos::MDRangePolicy({0 + ghost_buffers, 0 + ghost_buffers}, {size_x - ghost_buffers, size_y - ghost_buffers});
-  }
-
-
   void init_ghost_buffers(double);
 
   void randomize_distrib();
@@ -53,6 +48,17 @@ class BoltzmanLattice {
 
   void calc_density();
   void calc_avg_velocity();
+
+
+  void open_files(std::string prefix);
+
+  void print_dist(uint timestep);
+  void print_density(uint timestep);
+  void print_velocity(uint timestep);
+
+  inline Kokkos::MDRangePolicy<Kokkos::Rank<2>> all_nodes_policy() {
+    return Kokkos::MDRangePolicy({0 + ghost_buffers, 0 + ghost_buffers}, {size_x - ghost_buffers, size_y - ghost_buffers});
+  }
 
   inline double calc_feq(const uint x, const uint y, const Direction dir) {
       double rho = density(x, y);
@@ -67,9 +73,4 @@ class BoltzmanLattice {
   }
 
 
-  void open_files(std::string prefix);
-
-  void print_dist(uint timestep);
-  void print_density(uint timestep);
-  void print_velocity(uint timestep);
 };
