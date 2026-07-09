@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-CSV_FILE = "./04_distrib.csv"
+CSV_FILE = "./05_velocity.csv"
 LID_VELOCITY = 0.1
 OUTPUT_FILE = "moving_lid.mp4"
 
@@ -11,18 +11,6 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from IPython.display import HTML
 
-DIR = {
-    0: ( 0,  0),
-    1: ( 1,  0),
-    2: ( 0,  1),
-    3: (-1,  0),
-    4: ( 0, -1),
-    5: ( 1,  1),
-    6: (-1,  1),
-    7: (-1, -1),
-    8: ( 1, -1),
-}
-
 def get_grid_dims(csv_file):
     x_set, y_set = set(), set()
     for chunk in pd.read_csv(csv_file, chunksize=100000, usecols=['x', 'y']):
@@ -30,44 +18,13 @@ def get_grid_dims(csv_file):
         y_set.update(chunk['y'].unique())
     return sorted(x_set), sorted(y_set)
 
-def compute_velocity(dist, nx, ny):
-    rho = dist.sum(axis=2)
-    ux = np.zeros((nx, ny))
-    uy = np.zeros((nx, ny))
-    for d, (cx, cy) in DIR.items():
-        ux += cx * dist[:, :, d]
-        uy += cy * dist[:, :, d]
-    ux /= rho
-    uy /= rho
-    return ux, uy
-
 def frame_generator(csv_file, nx, ny):
-    val_cols = [f'd{i}' for i in range(9)]
-    buffer = []
-    buffer_ts = None
     for chunk in pd.read_csv(csv_file, chunksize=100000):
         for ts, group in chunk.groupby('timestep', sort=False):
-            if buffer_ts is None:
-                buffer_ts = ts
-                buffer = [group]
-            elif ts == buffer_ts:
-                buffer.append(group)
-            else:
-                df_ts = pd.concat(buffer, ignore_index=True)
-                piv = df_ts.pivot_table(index=['x', 'y'], columns='dir', values='dist_value')
-                piv.columns = val_cols
-                piv.reset_index(inplace=True)
-                dist = piv[val_cols].values.reshape(nx, ny, 9)
-                yield buffer_ts, *compute_velocity(dist, nx, ny)
-                buffer_ts = ts
-                buffer = [group]
-    if buffer:
-        df_ts = pd.concat(buffer, ignore_index=True)
-        piv = df_ts.pivot_table(index=['x', 'y'], columns='dir', values='dist_value')
-        piv.columns = val_cols
-        piv.reset_index(inplace=True)
-        dist = piv[val_cols].values.reshape(nx, ny, 9)
-        yield buffer_ts, *compute_velocity(dist, nx, ny)
+            sorted_group = group.sort_values(['x', 'y'])
+            ux = sorted_group['ux'].values.reshape(nx, ny)
+            uy = sorted_group['uy'].values.reshape(nx, ny)
+            yield ts, ux, uy
 
 x_vals, y_vals = get_grid_dims(CSV_FILE)
 nx, ny = len(x_vals), len(y_vals)

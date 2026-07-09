@@ -27,7 +27,7 @@ void run_sliding_lid_simulation() {
   simulation.feq_distrib();
 
   // print initial
-  simulation.print_dist(0);
+  simulation.print_velocity(0);
 
   PRINT_TIMESTEP(0);
   for (int i = 1; i <= NUM_TIMESTEPS; ++i) {
@@ -42,7 +42,7 @@ void run_sliding_lid_simulation() {
     simulation.collision();
 
     if (i % 20 == 0) 
-      simulation.print_dist(i);
+      simulation.print_velocity(i);
   }
 }
 
