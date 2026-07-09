@@ -22,7 +22,7 @@ const double y_part(Direction direction) {
 
 std::tuple<int, int> updated_coords(const int &x, const int &y, const Direction &dir, const unsigned int size_x, const unsigned int size_y) {
   int sx = static_cast<int>(size_x);
-  int sy = static_cast<int>(size_x);
+  int sy = static_cast<int>(size_y);
   int new_x = x + x_part(dir);;
   int new_y = y + y_part(dir);;
   // Boolean arithmentic magic
