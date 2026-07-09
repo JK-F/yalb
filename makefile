@@ -10,5 +10,6 @@ run4:
 	./build/executables/milestone04
 run5:
 	./build/executables/milestone05
+
 run5p:
-	OMP_PROC_BIND=spread OMP_PLACES=threads OMP_NUM_THREADS=8 ./build/executables/milestone05
+	OMP_PROC_BIND=spread OMP_PLACES=threads OMP_NUM_THREADS=8 ./build/executables/milestone05 --size=300 --lidv=0.3 --omega=1.0 --N=10000
