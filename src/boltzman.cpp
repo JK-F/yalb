@@ -191,7 +191,7 @@ void BoltzmanLattice::print_velocity(uint timestep) {
           << timestep << ","
           << x << ","
           << y << ","
-          << avg_velocity(x, y, X_DIR) 
+          << avg_velocity(x, y, X_DIR)  << ","
           << avg_velocity(x, y, Y_DIR) << '\n';
     }
   }
