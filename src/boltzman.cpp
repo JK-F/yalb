@@ -181,7 +181,7 @@ void BoltzmanLattice::print_velocity(uint timestep) {
       << "timestep,"
       << "x,"
       << "y,"
-      << "ux"
+      << "ux,"
       << "uy" << std::endl;
   }
   // Print all ux for all y and a fix x = N/2
