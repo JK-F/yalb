@@ -158,12 +158,11 @@ void BoltzmanLattice::print_density(uint timestep) {
 
 void BoltzmanLattice::print_velocity_slice(uint timestep) {
   if (!velocity_file.is_open()) {
-    velocity_file.open(this->file_prefix + "_velocity.csv", std::ios::out);
+    velocity_file.open(this->file_prefix + "_velocity_slice.csv", std::ios::out);
     velocity_file
       << "timestep,"
       << "y,"
-      << "ux"
-      << "uy" << std::endl;
+      << "velocity_value" << std::endl;
   }
   // Print all ux for all y and a fix x = N/2
   for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
@@ -171,7 +170,6 @@ void BoltzmanLattice::print_velocity_slice(uint timestep) {
         << timestep << ","
         << y << ","
         << avg_velocity(size_x/2, y, X_DIR) << '\n';
-        << avg_velocity(size_x/2, y, Y_DIR) << '\n';
   }
   velocity_file.flush();
 }
@@ -183,7 +181,8 @@ void BoltzmanLattice::print_velocity(uint timestep) {
       << "timestep,"
       << "x,"
       << "y,"
-      << "velocity_value" << std::endl;
+      << "ux"
+      << "uy" << std::endl;
   }
   // Print all ux for all y and a fix x = N/2
   for (int x = 0 + ghost_buffers; x < size_x - ghost_buffers; x++) {
@@ -192,7 +191,8 @@ void BoltzmanLattice::print_velocity(uint timestep) {
           << timestep << ","
           << x << ","
           << y << ","
-          << avg_velocity(x, y, X_DIR) << '\n';
+          << avg_velocity(x, y, X_DIR) 
+          << avg_velocity(x, y, Y_DIR) << '\n';
     }
   }
   velocity_file.flush();
