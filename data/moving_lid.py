@@ -1,9 +1,17 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from datetime import datetime
+
+format_code = "%Y_%m_%d_%Hh%Mm"
+now = datetime.now()
+date_prefix = now.strftime(format_code)
+
+
 CSV_FILE = "./data/05_velocity.csv"
-LID_VELOCITY = 0.1
-OUTPUT_FILE = "moving_lid.mp4"
+LID_VELOCITY = 0.3
+
+OUTPUT_FILE = f"../archive/{date_prefix}_{LID_VELOCITY}_moving_lid.mp4"
 
 import numpy as np
 import pandas as pd
@@ -27,11 +35,18 @@ nx, ny = len(x_vals), len(y_vals)
 L = nx
 print(f"Grid: {nx}x{ny}, L={L}")
 
+df_all = pd.read_csv(CSV_FILE)
+global_max_speed = np.sqrt(df_all['ux']**2 + df_all['uy']**2).max()
+
 X = (np.array(y_vals) - y_vals[0]) / L
 Y = (np.array(x_vals) - x_vals[0]) / L
 
 fig, ax = plt.subplots(figsize=(8, 8))
-fig.tight_layout(pad=3)
+fig.tight_layout(pad=1)
+
+sm = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(vmin=0, vmax=global_max_speed))
+sm.set_array([])
+cbar = fig.colorbar(sm, ax=ax, label='|u| - Velocity Magnitude')
 
 def animate(frame_data):
     ts, ux, uy = frame_data
