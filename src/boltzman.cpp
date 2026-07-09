@@ -156,7 +156,7 @@ void BoltzmanLattice::print_density(uint timestep) {
   density_file.flush();
 }
 
-void BoltzmanLattice::print_velocity(uint timestep) {
+void BoltzmanLattice::print_velocity_slice(uint timestep) {
   if (!velocity_file.is_open()) {
     velocity_file.open(this->file_prefix + "_velocity.csv", std::ios::out);
     velocity_file
@@ -170,6 +170,28 @@ void BoltzmanLattice::print_velocity(uint timestep) {
         << timestep << ","
         << y << ","
         << avg_velocity(size_x/2, y, X_DIR) << '\n';
+  }
+  velocity_file.flush();
+}
+
+void BoltzmanLattice::print_velocity(uint timestep) {
+  if (!velocity_file.is_open()) {
+    velocity_file.open(this->file_prefix + "_velocity.csv", std::ios::out);
+    velocity_file
+      << "timestep,"
+      << "x,"
+      << "y,"
+      << "velocity_value" << std::endl;
+  }
+  // Print all ux for all y and a fix x = N/2
+  for (int x = 0 + ghost_buffers; x < size_x - ghost_buffers; x++) {
+    for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
+        velocity_file
+          << timestep << ","
+          << x << ","
+          << y << ","
+          << avg_velocity(x, y, X_DIR) << '\n';
+    }
   }
   velocity_file.flush();
 }

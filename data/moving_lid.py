@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from IPython.display import HTML
 
 def get_grid_dims(csv_file):
     x_set, y_set = set(), set()

@@ -37,7 +37,7 @@ void run_shear_wave_simulation() {
   simulation.calc_density();
   simulation.print_dist(0);
   simulation.print_density(0);
-  simulation.print_velocity(0);
+  simulation.print_velocity_slice(0);
 
   for (int i = 1; i <= NUM_TIMESTEPS; ++i) {
     simulation.streaming();
@@ -48,7 +48,7 @@ void run_shear_wave_simulation() {
     simulation.print_dist(i);
     simulation.print_density(i);
     if (i % 300 == 0) {
-      simulation.print_velocity(i);
+      simulation.print_velocity_slice(i);
     }
 
   }

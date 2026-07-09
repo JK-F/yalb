@@ -54,6 +54,7 @@ class BoltzmanLattice {
 
   void print_dist(uint timestep);
   void print_density(uint timestep);
+  void print_velocity_slice(uint timestep);
   void print_velocity(uint timestep);
 
   inline Kokkos::MDRangePolicy<Kokkos::Rank<2>> all_nodes_policy() {
