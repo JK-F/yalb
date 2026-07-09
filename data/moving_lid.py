@@ -1,15 +1,25 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import sys
 from datetime import datetime
 
 format_code = "%Y_%m_%d_%Hh%Mm"
 now = datetime.now()
 date_prefix = now.strftime(format_code)
 
-
 CSV_FILE = "./data/05_velocity.csv"
-LID_VELOCITY = 0.3
+
+args = sys.argv[1:]
+if len(args) >= 1:
+    LID_VELOCITY = float(args[0])
+else:
+    LID_VELOCITY = 0.3
+
+if len(args) >= 2:
+    OMEGA = float(args[1])
+else:
+    OMEGA = 1.0
 
 OUTPUT_FILE = f"../archive/{date_prefix}_{LID_VELOCITY}_moving_lid.mp4"
 
@@ -65,7 +75,7 @@ def animate(frame_data):
     ax.annotate('', xy=(0.85, 1.06), xytext=(0.15, 1.06),
                 arrowprops=dict(arrowstyle='->', lw=2, color='red'),
                 annotation_clip=False)
-    ax.text(0.5, 1.09, f'Lid velocity = {LID_VELOCITY}',
+    ax.text(0.5, 1.09, f'Lid velocity = {LID_VELOCITY}, Ω = {OMEGA}',
             ha='center', va='bottom', fontsize=10)
     return strm.lines,
 

@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
     }
   }
   printf("Omega: %f, Lid Velocity: %f, L: %d\n", omega, lid_velocity, size);
-  return 0;
+
   Kokkos::initialize(argc, argv);
   run_sliding_lid_simulation(omega, lid_velocity, size, size, timesteps);
   Kokkos::finalize();
