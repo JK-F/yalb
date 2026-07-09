@@ -56,10 +56,13 @@ sm = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(vmin=0, vmax=globa
 sm.set_array([])
 cbar = fig.colorbar(sm, ax=ax, label='|u| - Velocity Magnitude')
 
+frame_counter = [0]
+
 def animate(frame_data):
     ts, ux, uy, _ = frame_data
-    if ts % 500 == 0:
-        print(f"\r animating {ts}")
+    frame_counter[0] += 1
+    if ts % 100 == 0:
+        print(f"\ranimating timestep {ts}, frame {frame_counter[0]}      ")
     ax.cla()
     speed = np.sqrt(ux**2 + uy**2)
     strm = ax.streamplot(X, Y, ux, uy, color=speed, cmap='viridis',
@@ -88,4 +91,4 @@ anim = FuncAnimation(fig, animate, frames=frame_generator(), repeat=False)
 if OUTPUT_FILE:
     print(f"Saving to {OUTPUT_FILE}...")
     anim.save(OUTPUT_FILE, writer='ffmpeg', dpi=100)
-    print("Done")
+    print(f"\nDone — {frame_counter[0]} frames rendered")
