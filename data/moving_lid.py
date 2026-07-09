@@ -86,7 +86,7 @@ def frame_generator():
         ts, ux, uy, ms = get_frame(chunk)
         yield ts, ux, uy, ms  
 
-anim = FuncAnimation(fig, animate, frames=frame_generator(), repeat=False)
+anim = FuncAnimation(fig, animate, frames=frame_generator(), repeat=False, save_count=None)
 
 if OUTPUT_FILE:
     print(f"Saving to {OUTPUT_FILE}...")
