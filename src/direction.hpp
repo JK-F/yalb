@@ -20,4 +20,4 @@ const double y_part(Direction direction);
 const double x_part(Direction direction);
 const double weight(Direction direction);
 
-std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir, const unsigned int size_x, const unsigned int size_y);
+std::tuple<int, int> updated_coords(const int &x, const int &y, const Direction &dir, const unsigned int size_x, const unsigned int size_y);

@@ -52,7 +52,7 @@ X = (np.array(y_vals) - y_vals[0]) / L
 Y = (np.array(x_vals) - x_vals[0]) / L
 
 fig, ax = plt.subplots(figsize=(8, 8))
-fig.tight_layout(pad=1)
+fig.tight_layout(pad=2)
 
 sm = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(vmin=0, vmax=global_max_speed))
 sm.set_array([])
