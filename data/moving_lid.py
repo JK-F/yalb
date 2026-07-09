@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-CSV_FILE = "./05_velocity.csv"
+CSV_FILE = "./data/05_velocity.csv"
 LID_VELOCITY = 0.1
 OUTPUT_FILE = "moving_lid.mp4"
 
@@ -11,19 +11,16 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 def get_grid_dims(csv_file):
-    x_set, y_set = set(), set()
-    for chunk in pd.read_csv(csv_file, chunksize=100000, usecols=['x', 'y']):
-        x_set.update(chunk['x'].unique())
-        y_set.update(chunk['y'].unique())
-    return sorted(x_set), sorted(y_set)
+    df = pd.read_csv(csv_file, usecols=['x', 'y'])
+    return sorted(df['x'].unique()), sorted(df['y'].unique())
 
 def frame_generator(csv_file, nx, ny):
-    for chunk in pd.read_csv(csv_file, chunksize=100000):
-        for ts, group in chunk.groupby('timestep', sort=False):
-            sorted_group = group.sort_values(['x', 'y'])
-            ux = sorted_group['ux'].values.reshape(nx, ny)
-            uy = sorted_group['uy'].values.reshape(nx, ny)
-            yield ts, ux, uy
+    df = pd.read_csv(csv_file)
+    for ts, group in df.groupby('timestep', sort=False):
+        sorted_group = group.sort_values(['x', 'y'])
+        ux = sorted_group['ux'].values.reshape(nx, ny)
+        uy = sorted_group['uy'].values.reshape(nx, ny)
+        yield ts, ux, uy
 
 x_vals, y_vals = get_grid_dims(CSV_FILE)
 nx, ny = len(x_vals), len(y_vals)
