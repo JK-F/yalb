@@ -36,8 +36,10 @@ nx, ny = len(x_vals), len(y_vals)
 L = nx
 print(f"Grid: {nx}x{ny}, L={L}, step_rows={step_rows}")
 
-X = (np.array(y_vals) - y_vals[0]) / L
-Y = (np.array(x_vals) - x_vals[0]) / L
+X_grid, Y_grid = np.meshgrid(
+    (np.array(x_vals) - x_vals[0]) / L,
+    (np.array(y_vals) - y_vals[0]) / L
+)
 
 fig, ax = plt.subplots(figsize=(8, 8))
 fig.tight_layout(pad=2)
@@ -45,8 +47,8 @@ fig.tight_layout(pad=2)
 def get_frame(chunk):
     sorted_chunk = chunk.sort_values(['x', 'y'])
     ts = chunk['timestep'].iloc[0]
-    ux = sorted_chunk['ux'].values.reshape(nx, ny)
-    uy = sorted_chunk['uy'].values.reshape(nx, ny)
+    ux = sorted_chunk['ux'].values.reshape(nx, ny).T
+    uy = sorted_chunk['uy'].values.reshape(nx, ny).T
     speed = np.sqrt(chunk['ux']**2 + chunk['uy']**2).max()
     return ts, ux, uy, speed
 
@@ -65,7 +67,7 @@ def animate(frame_data):
         print(f"\ranimating timestep {ts}, frame {frame_counter[0]}      ")
     ax.cla()
     speed = np.sqrt(ux**2 + uy**2)
-    strm = ax.streamplot(X, Y, ux, uy, color=speed, cmap='viridis',
+    strm = ax.streamplot(X_grid, Y_grid, ux, uy, color=speed, cmap='viridis',
                          density=1.5, linewidth=1)
     ax.set_xlabel('x / L')
     ax.set_ylabel('y / L')
