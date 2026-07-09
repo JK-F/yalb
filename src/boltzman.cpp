@@ -247,13 +247,13 @@ void BoltzmanLattice::bounce_back() {
   // (See cases for DOWN_LEFT and DOWN_RIGHT)
   Kokkos::parallel_for("bounce_back_y", policy_y, KOKKOS_LAMBDA (const int &y) {
       // Left border
-      distribution(1, y, RIGHT)                 = distribution(0, y, LEFT);
-      distribution(1, y, UP_RIGHT)              = distribution(0, y - 1, DOWN_LEFT);
-      distribution(1, y, DOWN_RIGHT)            = distribution(0, y + 1, UP_LEFT);
+      distribution(1,           y, RIGHT)        = distribution(0,           y,          LEFT);
+      distribution(1,           y, UP_RIGHT)     = distribution(0,           y - 1,      DOWN_LEFT);
+      distribution(1,           y, DOWN_RIGHT)   = distribution(0,           y + 1,      UP_LEFT);
       
       // Right border
-      distribution(size_x - 2, y, LEFT)         = distribution(size_x - 1,     y, RIGHT);
-      distribution(size_x - 2, y, UP_LEFT)      = distribution(size_x - 1, y - 1, DOWN_RIGHT);
-      distribution(size_x - 2, y, DOWN_LEFT)    = distribution(size_x - 1, y + 1, UP_RIGHT);
+      distribution(size_x - 2,  y, LEFT)         = distribution(size_x - 1,  y,          RIGHT);
+      distribution(size_x - 2,  y, UP_LEFT)      = distribution(size_x - 1,  y - 1,      DOWN_RIGHT);
+      distribution(size_x - 2,  y, DOWN_LEFT)    = distribution(size_x - 1,  y + 1,      UP_RIGHT);
   });
 }
