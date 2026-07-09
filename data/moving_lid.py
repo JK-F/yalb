@@ -82,8 +82,8 @@ fig.tight_layout(pad=3)
 
 def animate(frame_data):
     ts, ux, uy = frame_data
-    if ts % 500:
-        print(f"animating {ts}")
+    if ts % 500 == 0:
+        print(f"\r animating {ts}")
     ax.cla()
     speed = np.sqrt(ux**2 + uy**2)
     strm = ax.streamplot(X, Y, ux, uy, color=speed, cmap='viridis',
