@@ -3,7 +3,7 @@
 #include <sys/types.h>
 
 
-#define NUM_TIMESTEPS 700
+#define NUM_TIMESTEPS 2000
 #define PRINT_TIMESTEP(i) printf("Bolzman Lattice Timestep %05d / %05d\n", i, NUM_TIMESTEPS)
 
 #define SIZE_X 128

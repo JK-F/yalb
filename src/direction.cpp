@@ -72,12 +72,12 @@ std::tuple<int, int> updated_coords(const int &x, const int &y, const int &dir, 
     case UP:
     case UP_LEFT:
     case UP_RIGHT:
-      new_y = y == 0 ? size_y - UNIT : y - UNIT;
+      new_y = y == size_y - UNIT ? 0 : y + UNIT;
       break;
     case DOWN:
     case DOWN_LEFT:
     case DOWN_RIGHT:
-      new_y = y == size_y - UNIT ? 0 : y + UNIT;
+      new_y = y ==  0 ? size_y - UNIT : y - UNIT;
       break;
   }
   return std::tuple(new_x, new_y);
