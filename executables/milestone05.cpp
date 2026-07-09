@@ -4,6 +4,9 @@
 #include <sys/types.h>
 
 
+
+#define DEFAULT_PRINT false
+#define PRINT_STEADY true
 #define DEFAULT_TIMESTEPS 2000
 #define PRINT_TIMESTEP(i, timesteps) printf("Bolzman Lattice Timestep %05d / %05d\n", i, timesteps)
 
@@ -17,7 +20,7 @@
 #define DEFAULT_LIDV 0.1
 #define DEFAULT_OMEGA 1.5
 
-void run_sliding_lid_simulation(const double &omega, const double &lidv, const uint &size_x, const uint &size_y, const uint &timesteps) {
+void run_sliding_lid_simulation(const double &omega, const double &lidv, const uint &size_x, const uint &size_y, const uint &timesteps, const bool &print) {
   printf("Reynolds Number: %f\n", (lidv * size_x) / ( (1/omega - 0.5)/3));
 
   BoltzmanLattice simulation(size_x, size_y, GHOST_BUFFERS, lidv, omega, INIT_SPEED, INIT_SPEED, DENSITY_RHO);
@@ -29,7 +32,8 @@ void run_sliding_lid_simulation(const double &omega, const double &lidv, const u
   simulation.feq_distrib();
 
   // print initial
-  simulation.print_velocity(0);
+  if (print)
+    simulation.print_velocity(0);
 
   PRINT_TIMESTEP(0, timesteps);
   for (int i = 1; i <= timesteps; ++i) {
@@ -43,9 +47,11 @@ void run_sliding_lid_simulation(const double &omega, const double &lidv, const u
     simulation.calc_avg_velocity();
     simulation.collision();
 
-    if (i % 20 == 0) 
+    if (print && i % 20 == 0) 
       simulation.print_velocity(i);
   }
+  if (PRINT_STEADY)
+    simulation.print_velocity(timesteps + 1);
 }
 
 int main(int argc, char* argv[]) {
@@ -53,6 +59,7 @@ int main(int argc, char* argv[]) {
   double lid_velocity       = DEFAULT_LIDV;
   uint size                 = DEFAULT_SIZE;
   uint timesteps            = DEFAULT_TIMESTEPS;
+  bool print                = DEFAULT_PRINT;
   for (int i = 0; i < argc; i++) {
     auto arg = std::string(argv[i]);
     if (arg.rfind("--omega=", 0) == 0) {
@@ -67,11 +74,14 @@ int main(int argc, char* argv[]) {
     if (arg.rfind("--N=", 0) == 0) {
       timesteps = std::stoi(arg.substr(4));
     }
+    if (arg.rfind("--print", 0) == 0) {
+      print = true;
+    }
   }
   printf("Omega: %f, Lid Velocity: %f, L: %d, N: %d\n", omega, lid_velocity, size, timesteps);
 
   Kokkos::initialize(argc, argv);
-  run_sliding_lid_simulation(omega, lid_velocity, size, size, timesteps);
+  run_sliding_lid_simulation(omega, lid_velocity, size, size, timesteps, print);
   Kokkos::finalize();
   return 0;
 }
