@@ -14,7 +14,7 @@ args = sys.argv[1:]
 LID_VELOCITY = float(args[0]) if len(args) >= 1 else 0.3
 OMEGA = float(args[1]) if len(args) >= 2 else 1.0
 
-OUTPUT_FILE = f"../archive/{date_prefix}_{LID_VELOCITY}_moving_lid.mp4"
+OUTPUT_FILE = f"../archive/{date_prefix}_{LID_VELOCITY}_moving_lid"
 
 import subprocess
 import numpy as np
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 step_rows = int(subprocess.run(
-    ["awk", "-F,", 'NR==2{ts=$1; c=1} NR>2 && $1==ts{c++} NR>2 && $1!=ts{print c; exit}', CSV_FILE],
+    ["awk", "-F,", 'NR==2{ts=$1; c=1} NR>2 && $1==ts{c++} NR>2 && $1!=ts{print c; printed=1; exit} END{if(!printed && c) print c}', CSV_FILE],
     capture_output=True, text=True, check=True
 ).stdout.strip())
 
@@ -35,6 +35,11 @@ y_vals = sorted(first_chunk['y'].unique())
 nx, ny = len(x_vals), len(y_vals)
 L = nx
 print(f"Grid: {nx}x{ny}, L={L}, step_rows={step_rows}")
+
+total_lines = int(subprocess.run(
+    ["wc", "-l", CSV_FILE], capture_output=True, text=True, check=True
+).stdout.split()[0])
+n_timesteps = (total_lines - 1) // step_rows
 
 X_grid, Y_grid = np.meshgrid(
     (np.array(x_vals) - x_vals[0]) / L,
@@ -88,9 +93,16 @@ def frame_generator():
         ts, ux, uy, ms = get_frame(chunk)
         yield ts, ux, uy, ms  
 
-anim = FuncAnimation(fig, animate, frames=frame_generator(), repeat=False, save_count=None)
-
 if OUTPUT_FILE:
-    print(f"Saving to {OUTPUT_FILE}...")
-    anim.save(OUTPUT_FILE, writer='ffmpeg', dpi=100)
-    print(f"\nDone — {frame_counter[0]} frames rendered")
+    if n_timesteps == 1:
+        OUTPUT_FILE = OUTPUT_FILE + ".png"
+        print(f"Saving static image to {OUTPUT_FILE}...")
+        animate((first_ts, first_ux, first_uy, global_max_speed))
+        fig.savefig(OUTPUT_FILE, dpi=100)
+        print("Done")
+    else:
+        anim = FuncAnimation(fig, animate, frames=frame_generator(), repeat=False, save_count=None)
+        OUTPUT_FILE = OUTPUT_FILE + ".mp4"
+        print(f"Saving to {OUTPUT_FILE}...")
+        anim.save(f"{OUTPUT_FILE}", writer='ffmpeg', dpi=100)
+        print(f"\nDone — {frame_counter[0]} frames rendered")
