@@ -50,8 +50,17 @@ void run_sliding_lid_simulation(const double &omega, const double &lidv, const u
     if (print && i % 20 == 0) 
       simulation.print_velocity(i);
   }
-  if (PRINT_STEADY && !print)
+  if (PRINT_STEADY && !print) {
+      simulation.print_velocity(timesteps);
+  }
+  if (PRINT_STEADY) {
+      simulation.streaming();
+      simulation.bounce_back();
+      simulation.calc_density();
+      simulation.calc_avg_velocity();
+      simulation.collision();
       simulation.print_velocity(timesteps + 1);
+  }
 }
 
 int main(int argc, char* argv[]) {
