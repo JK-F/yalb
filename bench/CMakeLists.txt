@@ -30,5 +30,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(benchmark)
 
-add_executable(bench gemv_benchmarks.cpp)
-target_link_libraries(bench PRIVATE Eigen3::Eigen benchmark::benchmark)
+# gemv_benchmarks.cpp 
+add_executable(bench MLUPS_benchmark.cpp)
+target_link_libraries(bench PRIVATE Eigen3::Eigen benchmark::benchmark boltzman)

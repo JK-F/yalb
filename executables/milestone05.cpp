@@ -1,5 +1,7 @@
 #include <Kokkos_Core.hpp>
+#include "Kokkos_Complex.hpp"
 #include "boltzman.hpp"
+#include <cstdio>
 #include <string>
 #include <sys/types.h>
 
@@ -9,6 +11,7 @@
 #define PRINT_STEADY true
 #define DEFAULT_TIMESTEPS 2000
 #define PRINT_TIMESTEP(i, timesteps) printf("Bolzman Lattice Timestep %05d / %05d\n", i, timesteps)
+#define PRINT_MLUPS(runtime, X, Y, N) printf("Done computing after %fs\nMLUPS: %f\n", runtime, (X * Y * N) / (runtime * Kokkos::pow(10, 6)) )
 
 #define DEFAULT_SIZE 30
 #define SIZE_X DEFAULT_SIZE
@@ -22,6 +25,8 @@
 
 void run_sliding_lid_simulation(const double &omega, const double &lidv, const uint &size_x, const uint &size_y, const uint &timesteps, const bool &print) {
   printf("Reynolds Number: %f\n", (lidv * size_x) / ( (1/omega - 0.5)/3));
+  Kokkos::Timer timer;
+  Kokkos::fence();
 
   BoltzmanLattice simulation(size_x, size_y, GHOST_BUFFERS, lidv, omega, INIT_SPEED, INIT_SPEED, DENSITY_RHO);
   simulation.open_files("./data/05");
@@ -50,6 +55,9 @@ void run_sliding_lid_simulation(const double &omega, const double &lidv, const u
     if (print && i % 20 == 0) 
       simulation.print_velocity(i);
   }
+  double runtime = timer.seconds();
+  PRINT_MLUPS(runtime, SIZE_X, SIZE_Y, timesteps);
+
   if (PRINT_STEADY && !print) {
       simulation.print_velocity(timesteps);
   }
