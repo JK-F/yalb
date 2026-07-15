@@ -36,6 +36,8 @@ class BoltzmanLattice {
   BoltzmanLattice(const uint _size_x, const uint _size_y, const uint _ghost_buffers, const double _wall_velocity, const double _omega, const double ux, const double uy, const double _rho);
   BoltzmanLattice(const uint _size_x, const uint _size_y, const double _omega, const double ux, const double uy, const double _rho);
 
+  void initialize_fields(const double &ux, const double &uy, const double &_rho);
+
   void streaming();
   void collision();
   void bounce_back();

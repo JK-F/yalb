@@ -20,6 +20,14 @@ BoltzmanLattice::BoltzmanLattice(uint _size_x, uint _size_y, uint _ghost_buffers
   density = DENSITY { "DENSITY", size_x, size_y };
   avg_velocity = VELOCITY { "VELOCITY", size_x, size_y};
 
+  this->initialize_fields(ux, uy, _rho);
+}
+
+BoltzmanLattice::BoltzmanLattice(uint _size_x, uint _size_y, double _omega, double ux, double uy, double _rho)
+  : BoltzmanLattice(_size_x, _size_y, 0, 0, _omega, ux, uy, _rho) {}
+
+
+void BoltzmanLattice::initialize_fields(const double &ux, const double &uy, const double &_rho) {
   Kokkos::parallel_for(all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
     // |u| = sqrt(ux^2 + uy^2) = sqrt(0.09 + 0.09 = 0.18) < 0.5
     avg_velocity(x, y, X_DIR) = ux;
@@ -27,9 +35,6 @@ BoltzmanLattice::BoltzmanLattice(uint _size_x, uint _size_y, uint _ghost_buffers
     density(x, y) = _rho;
   });
 }
-
-BoltzmanLattice::BoltzmanLattice(uint _size_x, uint _size_y, double _omega, double ux, double uy, double _rho)
-  : BoltzmanLattice(_size_x, _size_y, 0, 0, _omega, ux, uy, _rho) {}
 
 void BoltzmanLattice::randomize_distrib() {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
