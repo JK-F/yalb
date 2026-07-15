@@ -41,6 +41,7 @@ class BoltzmanLattice {
 
   void streaming();
   void collision();
+  void collision_fused();
   void bounce_back();
 
   void init_ghost_buffers(double);
@@ -66,7 +67,7 @@ class BoltzmanLattice {
 
 };
 
-KOKKOS_INLINE_FUNCTION double calc_feq(const uint x, const uint y, const Direction dir, const VELOCITY &velocity, const DENSITY &density) {
+KOKKOS_FORCEINLINE_FUNCTION double calc_feq(const uint x, const uint y, const Direction dir, const VELOCITY &velocity, const DENSITY &density) {
     double rho = density(x, y);
     double ux = velocity(x, y, X_DIR);
     double uy = velocity(x, y, Y_DIR);

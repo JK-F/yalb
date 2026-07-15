@@ -13,25 +13,55 @@ enum Direction {
   DOWN_RIGHT = 8,
 };
 
-KOKKOS_INLINE_FUNCTION
+KOKKOS_FORCEINLINE_FUNCTION
 double x_part(Direction direction) {
-  static constexpr double lut[] = {0, 1, 0, -1, 0, 1, -1, -1, 1};
-  return lut[direction];
+  switch (direction) {
+    case NONE: return 0;
+    case RIGHT: return 1;
+    case UP: return 0;
+    case LEFT: return -1;
+    case DOWN: return 0;
+    case UP_RIGHT: return 1;
+    case UP_LEFT: return -1;
+    case DOWN_LEFT: return -1;
+    case DOWN_RIGHT: return 1;
+  }
+  return 0;
 }
 
-KOKKOS_INLINE_FUNCTION
+KOKKOS_FORCEINLINE_FUNCTION
 double y_part(Direction direction) {
-  static constexpr double lut[] = {0, 0, 1, 0, -1, 1, 1, -1, -1};
-  return lut[direction];
+  switch (direction) {
+    case NONE: return 0;
+    case RIGHT: return 0;
+    case UP: return 1;
+    case LEFT: return 0;
+    case DOWN: return -1;
+    case UP_RIGHT: return 1;
+    case UP_LEFT: return 1;
+    case DOWN_LEFT: return -1;
+    case DOWN_RIGHT: return -1;
+  }
+  return 0;
 }
 
-KOKKOS_INLINE_FUNCTION
+KOKKOS_FORCEINLINE_FUNCTION
 double weight(Direction direction) {
-  static constexpr double lut[] = {4. / 9., 1. / 9., 1. / 9., 1. / 9., 1. / 9., 1. / 36., 1. / 36., 1. / 36., 1. / 36.};
-  return lut[direction];
+  switch (direction) {
+    case NONE: return 4. / 9.;
+    case RIGHT: return 1. / 9.;
+    case UP: return 1. / 9.;
+    case LEFT: return 1. / 9.;
+    case DOWN: return 1. / 9.;
+    case UP_RIGHT: return 1. / 36.;
+    case UP_LEFT: return 1. / 36.;
+    case DOWN_LEFT: return 1. / 36.;
+    case DOWN_RIGHT: return 1. / 36.;
+  }
+  return 0;
 }
 
-KOKKOS_INLINE_FUNCTION
+KOKKOS_FORCEINLINE_FUNCTION
 Kokkos::pair<int, int> updated_coords(const int &x, const int &y, const Direction &dir, const unsigned int size_x, const unsigned int size_y) {
   int sx = static_cast<int>(size_x);
   int sy = static_cast<int>(size_y);

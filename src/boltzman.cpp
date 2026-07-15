@@ -259,6 +259,41 @@ void BoltzmanLattice::collision() {
   });
 }
 
+void BoltzmanLattice::collision_fused() {
+  auto distrib = this->distribution;
+  auto density = this->density;
+  auto velocity = this->avg_velocity;
+  auto om = omega;
+  Kokkos::parallel_for("CollisionFused", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
+    double f[NUM_DIRECTIONS];
+    double rho = 0;
+    double ux = 0;
+    double uy = 0;
+    for (int i = 0; i < NUM_DIRECTIONS; i++) {
+      double fi = distrib(x, y, i);
+      f[i] = fi;
+      rho += fi;
+      Direction d = static_cast<Direction>(i);
+      ux += x_part(d) * fi;
+      uy += y_part(d) * fi;
+    }
+    ux /= rho;
+    uy /= rho;
+    density(x, y) = rho;
+    velocity(x, y, X_DIR) = ux;
+    velocity(x, y, Y_DIR) = uy;
+    double magnitude_squared = ux * ux + uy * uy;
+    for (int i = 0; i < NUM_DIRECTIONS; i++) {
+      Direction d = static_cast<Direction>(i);
+      double w_i = weight(d);
+      double cu = x_part(d) * ux + y_part(d) * uy;
+      double sum = 1. + 3. * cu + 9. / 2. * cu * cu - 3. / 2. * magnitude_squared;
+      double feq = w_i * rho * sum;
+      distrib(x, y, i) = f[i] + om * (feq - f[i]);
+    }
+  });
+}
+
 void BoltzmanLattice::streaming() {
   auto buff = this->buffer;
   auto distrib = this->distribution;

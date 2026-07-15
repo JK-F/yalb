@@ -22,9 +22,7 @@ static void sliding_lid_bench(benchmark::State& state) {
   for (int i = 1; i <= timesteps; ++i) {
     simulation.streaming();
     simulation.bounce_back();
-    simulation.calc_density();
-    simulation.calc_avg_velocity();
-    simulation.collision();
+    simulation.collision_fused();
   }
 
   state.SetComplexityN(SIZE);

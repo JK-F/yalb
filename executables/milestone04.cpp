@@ -31,9 +31,7 @@ void run_shear_wave_simulation() {
 
   for (int i = 1; i <= NUM_TIMESTEPS; ++i) {
     simulation.streaming();
-    simulation.calc_density();
-    simulation.calc_avg_velocity();
-    simulation.collision();
+    simulation.collision_fused();
 
     simulation.print_dist(i);
     simulation.print_density(i);

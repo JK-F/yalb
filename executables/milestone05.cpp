@@ -49,9 +49,7 @@ void run_sliding_lid_simulation(const double &omega, const double &lidv, const u
 
     simulation.streaming();
     simulation.bounce_back();
-    simulation.calc_density();
-    simulation.calc_avg_velocity();
-    simulation.collision();
+    simulation.collision_fused();
 
     if (print && i % 20 == 0) 
       simulation.print_velocity(i);
@@ -66,9 +64,7 @@ void run_sliding_lid_simulation(const double &omega, const double &lidv, const u
   if (PRINT_STEADY) {
       simulation.streaming();
       simulation.bounce_back();
-      simulation.calc_density();
-      simulation.calc_avg_velocity();
-      simulation.collision();
+      simulation.collision_fused();
       simulation.print_velocity(timesteps + 1);
   }
 }
