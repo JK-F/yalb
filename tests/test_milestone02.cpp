@@ -1,5 +1,6 @@
 #include <Kokkos_Core.hpp>
 #include <gtest/gtest.h>
+#include "Kokkos_Macros.hpp"
 #include "boltzman.hpp"
 #include <cassert>
 
@@ -36,12 +37,13 @@ TEST(Milestone02, PeriodicValidation) {
 
 TEST(Milestone02, MassConservation) {
   BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, 0.0, 0.0 ,0.0);
+  auto dist = sim.distribution;
   sim.randomize_distrib();
   double weight = 0.;
   Kokkos::parallel_reduce(
-      sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+      sim.all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y, double &acc) {
         for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
-            acc += sim.distribution(x, y, dir);
+            acc += dist(x, y, dir);
         }
       },
       weight);
@@ -50,9 +52,9 @@ TEST(Milestone02, MassConservation) {
     sim.streaming();
     double running_weight = 0.;
     Kokkos::parallel_reduce(
-        sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+        sim.all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y, double &acc) {
           for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
-              acc += sim.distribution(x, y, dir);
+              acc += dist(x, y, dir);
           }
         },
         running_weight);

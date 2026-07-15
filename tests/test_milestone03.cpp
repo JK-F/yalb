@@ -10,11 +10,12 @@
 TEST(Milestone03, MassConservation) {
   BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, 0.3, 0.3, 0.1);
   sim.randomize_distrib();
+  auto dist = sim.distribution;
   double weight = 0.;
     Kokkos::parallel_reduce(
-      sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+      sim.all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y, double &acc) {
         for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
-            acc += sim.distribution(x, y, dir);
+            acc += dist(x, y, dir);
         }
       },
       weight);
@@ -26,9 +27,9 @@ TEST(Milestone03, MassConservation) {
     sim.collision();
     double running_weight = 0.;
     Kokkos::parallel_reduce(
-      sim.all_nodes_policy(), [&](const int &x, const int &y, double &acc) {
+      sim.all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y, double &acc) {
         for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
-            acc += sim.distribution(x, y, dir);
+            acc += dist(x, y, dir);
         }
       },
       running_weight);
@@ -38,6 +39,7 @@ TEST(Milestone03, MassConservation) {
 
 TEST(Milestone03, MomentumConservation) {
   BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, 0.3, 0.3, 0.1);
+
   sim.randomize_distrib();
   const auto policy_2d = sim.all_nodes_policy();
 
@@ -47,18 +49,21 @@ TEST(Milestone03, MomentumConservation) {
     sim.calc_avg_velocity();
 
     double rho_u_x = 0, rho_u_y = 0;
+  auto dist = sim.distribution;
+  auto avg_velocity = sim.avg_velocity;
+  auto density = sim.density;
     Kokkos::parallel_reduce(
-        policy_2d, [&](int x, int y, double& mx, double& my) {
-            mx += sim.density(x, y) * sim.avg_velocity(x, y, X_DIR);
-            my += sim.density(x, y) * sim.avg_velocity(x, y, Y_DIR);
+        policy_2d, KOKKOS_LAMBDA (int x, int y, double& mx, double& my) {
+            mx += density(x, y) * avg_velocity(x, y, X_DIR);
+            my += density(x, y) * avg_velocity(x, y, Y_DIR);
         }, Kokkos::Sum<double>(rho_u_x), Kokkos::Sum<double>(rho_u_y));
 
     double c_f_x = 0, c_f_y = 0;
     Kokkos::parallel_reduce(
-        policy_2d, [&](int x, int y, double& mx, double& my) {
+        policy_2d, KOKKOS_LAMBDA (int x, int y, double& mx, double& my) {
             for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
                 Direction d = static_cast<Direction>(dir);
-                double f = sim.distribution(x, y, dir);
+                double f = dist(x, y, dir);
                 mx += x_part(d) * f;
                 my += y_part(d) * f;
             }
@@ -72,16 +77,16 @@ TEST(Milestone03, MomentumConservation) {
     sim.calc_avg_velocity();
 
     Kokkos::parallel_reduce(
-        policy_2d, [&](int x, int y, double& mx, double& my) {
-            mx += sim.density(x, y) * sim.avg_velocity(x, y, X_DIR);
-            my += sim.density(x, y) * sim.avg_velocity(x, y, Y_DIR);
+        policy_2d, KOKKOS_LAMBDA (int x, int y, double& mx, double& my) {
+            mx += density(x, y) * avg_velocity(x, y, X_DIR);
+            my += density(x, y) * avg_velocity(x, y, Y_DIR);
         }, Kokkos::Sum<double>(rho_u_x), Kokkos::Sum<double>(rho_u_y));
 
     Kokkos::parallel_reduce(
-        policy_2d, [&](int x, int y, double& mx, double& my) {
+        policy_2d, KOKKOS_LAMBDA (int x, int y, double& mx, double& my) {
             for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
                 Direction d = static_cast<Direction>(dir);
-                double f = sim.distribution(x, y, dir);
+                double f = dist(x, y, dir);
                 mx += x_part(d) * f;
                 my += y_part(d) * f;
             }
@@ -96,11 +101,12 @@ TEST(Milestone03, EquilibriumFixpoint) {
   const double u = 0.3;
   const double rho = 0.1;
   BoltzmanLattice sim(SIZE_X, SIZE_Y, 0.5, u, u, rho);
+  auto dist = sim.distribution;
   for (int x = 0; x < SIZE_X; x++) {
     for (int y = 0; y < SIZE_Y; y++) {
       for (int d = 0; d < NUM_DIRECTIONS; d++) {
         auto dir = static_cast<Direction>(d);
-        sim.distribution(x, y, d) = sim.calc_feq(x, y, dir);
+        dist(x, y, d) = sim.calc_feq(x, y, dir);
       }
     }
   }
