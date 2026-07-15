@@ -259,6 +259,8 @@ void BoltzmanLattice::collision() {
   });
 }
 
+
+// Basically a combination of calc_avg_velocity calc_density calc_feq and collision
 void BoltzmanLattice::collision_fused() {
   auto distrib = this->distribution;
   auto density = this->density;
