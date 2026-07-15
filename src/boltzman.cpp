@@ -233,7 +233,7 @@ void BoltzmanLattice::print_velocity(uint timestep) {
   Kokkos::deep_copy(mirror, this->avg_velocity);
   for (int x = 0 + ghost_buffers; x < size_x - ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
-        std::cout
+        velocity_file
           << timestep << ","
           << x << ","
           << y << ","
