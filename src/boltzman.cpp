@@ -138,6 +138,9 @@ void BoltzmanLattice::print_dist(uint timestep) {
       << "dir,"
       << "dist_value" << '\n';
   }
+
+  auto mirror = Kokkos::create_mirror_view(distribution);
+  Kokkos::deep_copy(mirror, distribution);
   for (int x = 0 + ghost_buffers; x < size_x -ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
       for (int dir = 0; dir < NUM_DIRECTIONS; dir++) {
@@ -146,7 +149,7 @@ void BoltzmanLattice::print_dist(uint timestep) {
           << x << ","
           << y << ","
           << dir << ","
-          << distribution(x, y, dir) << '\n';
+          << mirror(x, y, dir) << '\n';
       }
     }
   }
