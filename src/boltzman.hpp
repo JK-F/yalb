@@ -64,7 +64,7 @@ class BoltzmanLattice {
     return Kokkos::MDRangePolicy({0 + ghost_buffers, 0 + ghost_buffers}, {size_x - ghost_buffers, size_y - ghost_buffers});
   }
 
-  inline double calc_feq(const uint x, const uint y, const Direction dir) {
+  KOKKOS_INLINE_FUNCTION double calc_feq(const uint x, const uint y, const Direction dir) {
       double rho = density(x, y);
       double ux = avg_velocity(x, y, X_DIR);
       double uy = avg_velocity(x, y, Y_DIR);
