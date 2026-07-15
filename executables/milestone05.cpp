@@ -11,7 +11,7 @@
 #define PRINT_STEADY true
 #define DEFAULT_TIMESTEPS 2000
 #define PRINT_TIMESTEP(i, timesteps) printf("Bolzman Lattice Timestep %05d / %05d", i, timesteps)
-#define PRINT_MLUPS(runtime, X, Y, N) printf("Done computing after %fs\nMLUPS: %f\n", runtime, (X * Y * N) / (runtime * Kokkos::pow(10, 6)) )
+#define PRINT_MLUPS(runtime, X, Y, N) printf("Done computing after %fs\nMLUPS: %f\n", runtime, static_cast<double>(X * Y * N) / (runtime * 1000000.) )
 
 #define DEFAULT_SIZE 30
 #define SIZE_X DEFAULT_SIZE
@@ -56,7 +56,7 @@ void run_sliding_lid_simulation(const double &omega, const double &lidv, const u
   }
   printf("\n");
   double runtime = timer.seconds();
-  PRINT_MLUPS(runtime, SIZE_X, SIZE_Y, timesteps);
+  PRINT_MLUPS(runtime, size_x, size_y, timesteps);
 
   if (PRINT_STEADY && !print) {
       simulation.print_velocity(timesteps);
