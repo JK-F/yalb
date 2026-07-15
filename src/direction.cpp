@@ -12,11 +12,11 @@ static constexpr double w_lut[9] = {
                                     /*Diagonal*/    1. / 36., 1. / 36., 1. / 36., 1. / 36., 
                                     };
 
-const double x_part(Direction direction) {
+double x_part(Direction direction) {
   return x_lut[direction];
 }
 
-const double y_part(Direction direction) {
+double y_part(Direction direction) {
   return y_lut[direction];
 }
 
@@ -35,7 +35,7 @@ std::tuple<int, int> updated_coords(const int &x, const int &y, const Direction 
   return std::tuple(new_x, new_y);
 }
 
-const double weight(Direction direction) {
+double weight(Direction direction) {
   return w_lut[direction];
 }
 
