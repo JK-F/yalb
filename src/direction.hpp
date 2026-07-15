@@ -1,5 +1,4 @@
 #include <Kokkos_Core.hpp>
-#include <utility>
 #define NUM_DIRECTIONS 9
 
 enum Direction {
@@ -33,7 +32,7 @@ double weight(Direction direction) {
 }
 
 KOKKOS_INLINE_FUNCTION
-std::pair<int, int> updated_coords(const int &x, const int &y, const Direction &dir, const unsigned int size_x, const unsigned int size_y) {
+Kokkos::pair<int, int> updated_coords(const int &x, const int &y, const Direction &dir, const unsigned int size_x, const unsigned int size_y) {
   int sx = static_cast<int>(size_x);
   int sy = static_cast<int>(size_y);
   int new_x = x + x_part(dir);
@@ -42,5 +41,5 @@ std::pair<int, int> updated_coords(const int &x, const int &y, const Direction &
   new_x += (new_x < 0)   * sx;
   new_y -= (new_y >= sy) * sy;
   new_y += (new_y < 0)   * sy;
-  return std::make_pair(new_x, new_y);
+  return Kokkos::make_pair(new_x, new_y);
 }
