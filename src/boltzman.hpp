@@ -37,6 +37,7 @@ class BoltzmanLattice {
   BoltzmanLattice(const uint _size_x, const uint _size_y, const double _omega, const double ux, const double uy, const double _rho);
 
   void initialize_fields(const double &ux, const double &uy, const double &_rho);
+  void shear_wave_init(const double &_eps, const double &_rho);
 
   void streaming();
   void collision();

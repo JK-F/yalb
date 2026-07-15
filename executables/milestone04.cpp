@@ -1,5 +1,4 @@
 #include <Kokkos_Core.hpp>
-#include "Kokkos_MathematicalFunctions.hpp"
 #include "boltzman.hpp"
 #include <sys/types.h>
 
@@ -19,16 +18,7 @@ void run_shear_wave_simulation() {
 
   double eps = 0.01;
   double rho = 1;
-  Kokkos::parallel_for("INIT_STEP", simulation.all_nodes_policy(), [&] (const int &x, const int &y) {
-    for (uint d = 0; d < NUM_DIRECTIONS; d++) {
-      Direction dir = static_cast<Direction>(d);
-      double k = 2 * Kokkos::numbers::pi / SIZE_Y;
-
-      simulation.density(x, y) = rho;
-      simulation.avg_velocity(x, y, X_DIR) = eps * Kokkos::sin(k * y);
-      simulation.avg_velocity(x, y, Y_DIR) = 0;
-    }
-  });
+  simulation.shear_wave_init(eps, rho);
 
   simulation.feq_distrib();
   simulation.open_files("./data/04");

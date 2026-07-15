@@ -36,6 +36,19 @@ void BoltzmanLattice::initialize_fields(const double &ux, const double &uy, cons
   });
 }
 
+void BoltzmanLattice::shear_wave_init(const double &eps, const double &rho) {
+  Kokkos::parallel_for("INIT_STEP", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
+    for (uint d = 0; d < NUM_DIRECTIONS; d++) {
+      Direction dir = static_cast<Direction>(d);
+      double k = 2 * Kokkos::numbers::pi / size_y;
+
+      density(x, y) = rho;
+      avg_velocity(x, y, X_DIR) = eps * Kokkos::sin(k * y);
+      avg_velocity(x, y, Y_DIR) = 0;
+    }
+  });
+}
+
 void BoltzmanLattice::randomize_distrib() {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   Kokkos::parallel_for("INIT_STEP", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
