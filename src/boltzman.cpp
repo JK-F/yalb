@@ -267,8 +267,8 @@ void BoltzmanLattice::streaming() {
   Kokkos::parallel_for("Streaming", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
     for (int i = 0; i < NUM_DIRECTIONS; i++) {
       auto dir = static_cast<Direction>(i);
-      auto [new_x, new_y] = updated_coords(x, y, dir, sx, sy);
-      buff(new_x,new_y,dir) = distrib(x, y, dir);
+      auto coords = updated_coords(x, y, dir, sx, sy);
+      buff(coords.first, coords.second,dir) = distrib(x, y, dir);
     }
   });
   Kokkos::kokkos_swap(this->distribution, this->buffer);

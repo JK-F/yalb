@@ -42,5 +42,5 @@ std::pair<int, int> updated_coords(const int &x, const int &y, const Direction &
   new_x += (new_x < 0)   * sx;
   new_y -= (new_y >= sy) * sy;
   new_y += (new_y < 0)   * sy;
-  return std::pair(new_x, new_y);
+  return std::make_pair(new_x, new_y);
 }
