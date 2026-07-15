@@ -106,7 +106,7 @@ TEST(Milestone03, EquilibriumFixpoint) {
     for (int y = 0; y < SIZE_Y; y++) {
       for (int d = 0; d < NUM_DIRECTIONS; d++) {
         auto dir = static_cast<Direction>(d);
-        dist(x, y, d) = sim.calc_feq(x, y, dir);
+        dist(x, y, d) = calc_feq(x, y, dir, sim.avg_velocity, sim.density);
       }
     }
   }

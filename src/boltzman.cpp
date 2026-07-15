@@ -103,10 +103,12 @@ void BoltzmanLattice::uniform_distrib(double d) {
 
 void BoltzmanLattice::feq_distrib() {
   auto distrib = this->distribution;
+  auto avg_velocity = this->avg_velocity;
+  auto density = this->density;
   Kokkos::parallel_for("INIT_STEP", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
     for (uint d = 0; d < NUM_DIRECTIONS; d++) {
       Direction dir = static_cast<Direction>(d);
-      double val = calc_feq(x, y, dir);
+      double val = calc_feq(x, y, dir, avg_velocity, density);
       distrib(x,y,dir) = val;
     }
   });
@@ -243,10 +245,12 @@ void BoltzmanLattice::print_velocity(uint timestep) {
 
 void BoltzmanLattice::collision() {
   auto distrib = this->distribution;
+  auto avg_velocity = this->avg_velocity;
+  auto density = this->density;
   Kokkos::parallel_for("Collision", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
     for (uint i = 0; i < NUM_DIRECTIONS; i++) {
       auto dir = static_cast<Direction>(i);
-      double feq = calc_feq(x, y, static_cast<Direction>(dir));
+      double feq = calc_feq(x, y, static_cast<Direction>(dir), avg_velocity, density);
       distrib(x, y, dir) += omega * (feq - distrib(x, y, dir)) ;
     }
   });
