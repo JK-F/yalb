@@ -6,7 +6,7 @@
 #include "impl/Kokkos_Profiling.hpp"
 
 BoltzmanLattice::BoltzmanLattice(uint _size_x, uint _size_y, uint _ghost_buffers, double _wall_velocity, double _omega, double ux, double uy, double _rho) {
-  // Add ghost buffer at both ends
+  // Add ghost this->buffer at both ends
   size_x = _size_x + 2 * _ghost_buffers;
   size_y = _size_y + 2 * _ghost_buffers;
   ghost_buffers = _ghost_buffers;
@@ -15,10 +15,10 @@ BoltzmanLattice::BoltzmanLattice(uint _size_x, uint _size_y, uint _ghost_buffers
   omega = _omega;
   rho = _rho;
 
-  distribution = DISTRIB { "DISTRIBUTION", size_x, size_y, NUM_DIRECTIONS };
-  buffer = DISTRIB { "BUFFER_DISTRIBUTION", size_x, size_y, NUM_DIRECTIONS };
-  density = DENSITY { "DENSITY", size_x, size_y };
-  avg_velocity = VELOCITY { "VELOCITY", size_x, size_y};
+  this->distribution = DISTRIB { "DISTRIBUTION", size_x, size_y, NUM_DIRECTIONS };
+  this->buffer = DISTRIB { "BUFFER_DISTRIBUTION", size_x, size_y, NUM_DIRECTIONS };
+  this->density = DENSITY { "DENSITY", size_x, size_y };
+  this->avg_velocity = VELOCITY { "VELOCITY", size_x, size_y};
 
   this->initialize_fields(ux, uy, _rho);
 }
@@ -30,9 +30,9 @@ BoltzmanLattice::BoltzmanLattice(uint _size_x, uint _size_y, double _omega, doub
 void BoltzmanLattice::initialize_fields(const double &ux, const double &uy, const double &_rho) {
   Kokkos::parallel_for(all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
     // |u| = sqrt(ux^2 + uy^2) = sqrt(0.09 + 0.09 = 0.18) < 0.5
-    avg_velocity(x, y, X_DIR) = ux;
-    avg_velocity(x, y, Y_DIR) = uy;
-    density(x, y) = _rho;
+    this->avg_velocity(x, y, X_DIR) = ux;
+    this->avg_velocity(x, y, Y_DIR) = uy;
+    this->density(x, y) = _rho;
   });
 }
 
@@ -42,9 +42,9 @@ void BoltzmanLattice::shear_wave_init(const double &eps, const double &rho) {
       Direction dir = static_cast<Direction>(d);
       double k = 2 * Kokkos::numbers::pi / size_y;
 
-      density(x, y) = rho;
-      avg_velocity(x, y, X_DIR) = eps * Kokkos::sin(k * y);
-      avg_velocity(x, y, Y_DIR) = 0;
+      this->density(x, y) = rho;
+      this->avg_velocity(x, y, X_DIR) = eps * Kokkos::sin(k * y);
+      this->avg_velocity(x, y, Y_DIR) = 0;
     }
   });
 }
@@ -55,7 +55,7 @@ void BoltzmanLattice::randomize_distrib() {
     for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
       auto generator = random_pool.get_state();
       double val = generator.drand(0., 1000.);
-      distribution(x,y,dir) = val;
+      this->distribution(x,y,dir) = val;
       random_pool.free_state(generator);
     }
   });
@@ -68,18 +68,18 @@ void BoltzmanLattice::init_ghost_buffers(double val) {
 
   Kokkos::parallel_for("init_ghost_x", policy_x, KOKKOS_LAMBDA (const int &x) {
     for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
-      distribution(x,0,dir) = val;
-      distribution(x,size_y - 1,dir) = val;
-      buffer(x,0,dir) = val;
-      buffer(x,size_y - 1,dir) = val;
+      this->distribution(x,0,dir) = val;
+      this->distribution(x,size_y - 1,dir) = val;
+      this->buffer(x,0,dir) = val;
+      this->buffer(x,size_y - 1,dir) = val;
     }
   });
   Kokkos::parallel_for("init_ghost_y", policy_y, KOKKOS_LAMBDA (const int &y) {
     for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
-      distribution(0,y,dir) = val;
-      distribution(size_x -1, y,dir) = val;
-      buffer(0,y,dir) = val;
-      buffer(size_x -1, y,dir) = val;
+      this->distribution(0,y,dir) = val;
+      this->distribution(size_x -1, y,dir) = val;
+      this->buffer(0,y,dir) = val;
+      this->buffer(size_x -1, y,dir) = val;
     }
   });
 }
@@ -87,7 +87,7 @@ void BoltzmanLattice::init_ghost_buffers(double val) {
 void BoltzmanLattice::uniform_distrib(double d) {
   Kokkos::parallel_for("INIT_STEP", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
     for (uint dir = 0; dir < NUM_DIRECTIONS; dir++) {
-      distribution(x,y,dir) = d;
+      this->distribution(x,y,dir) = d;
     }
   });
 }
@@ -97,7 +97,7 @@ void BoltzmanLattice::feq_distrib() {
     for (uint d = 0; d < NUM_DIRECTIONS; d++) {
       Direction dir = static_cast<Direction>(d);
       double val = calc_feq(x, y, dir);
-      distribution(x,y,dir) = val;
+      this->distribution(x,y,dir) = val;
     }
   });
 }
@@ -106,20 +106,20 @@ void BoltzmanLattice::calc_density() {
   Kokkos::parallel_for("CALC_DENSITY", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
       double res = 0;
       for (int dir = 0; dir < NUM_DIRECTIONS; dir++) {
-         res += distribution(x, y, dir);
+         res += this->distribution(x, y, dir);
       }
-      density(x,y) = res;
+      this->density(x,y) = res;
     });
 }
 
 void BoltzmanLattice::calc_avg_velocity() {
   Kokkos::parallel_for("CALC_AVG_VELOCITY", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
-    double rho = density(x, y);
-      avg_velocity(x, y, X_DIR) = 0;
-      avg_velocity(x, y, Y_DIR) = 0;
+    double rho = this->density(x, y);
+      this->avg_velocity(x, y, X_DIR) = 0;
+      this->avg_velocity(x, y, Y_DIR) = 0;
     for (auto dir = 0; dir < NUM_DIRECTIONS; dir++) {
-      avg_velocity(x, y, X_DIR) += x_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
-      avg_velocity(x, y, Y_DIR) += y_part(static_cast<Direction>(dir)) * distribution(x, y, dir) / rho;
+      this->avg_velocity(x, y, X_DIR) += x_part(static_cast<Direction>(dir)) * this->distribution(x, y, dir) / rho;
+      this->avg_velocity(x, y, Y_DIR) += y_part(static_cast<Direction>(dir)) * this->distribution(x, y, dir) / rho;
     }
   });
 }
@@ -139,8 +139,8 @@ void BoltzmanLattice::print_dist(uint timestep) {
       << "dist_value" << '\n';
   }
 
-  auto mirror = Kokkos::create_mirror_view(distribution);
-  Kokkos::deep_copy(mirror, distribution);
+  auto mirror = Kokkos::create_mirror_view(this->distribution);
+  Kokkos::deep_copy(mirror, this->distribution);
   for (int x = 0 + ghost_buffers; x < size_x -ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
       for (int dir = 0; dir < NUM_DIRECTIONS; dir++) {
@@ -157,26 +157,26 @@ void BoltzmanLattice::print_dist(uint timestep) {
 }
 
 void BoltzmanLattice::print_density(uint timestep) {
-  if (!density_file.is_open()) {
-    density_file.open(this->file_prefix + "_density.csv", std::ios::out);
-    density_file
+  if (!this->density_file.is_open()) {
+    this->density_file.open(this->file_prefix + "_density.csv", std::ios::out);
+    this->density_file
       << "timestep,"
       << "x,"
       << "y,"
-      << "density_value" << std::endl;
+      << "this->density_value" << std::endl;
   }
-  auto mirror = Kokkos::create_mirror_view(density);
-  Kokkos::deep_copy(mirror, density);
+  auto mirror = Kokkos::create_mirror_view(this->density);
+  Kokkos::deep_copy(mirror, this->density);
   for (int x = 0 + ghost_buffers; x < size_x -ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
-        density_file 
+        this->density_file 
           << timestep << ","
           << x << ","
           << y << ","
           << mirror(x, y) << '\n';
     }
   }
-  density_file.flush();
+  this->density_file.flush();
 }
 
 void BoltzmanLattice::print_velocity_slice(uint timestep) {
@@ -188,8 +188,8 @@ void BoltzmanLattice::print_velocity_slice(uint timestep) {
       << "velocity_value" << std::endl;
   }
   // Print all ux for all y and a fix x = N/2
-  auto mirror = Kokkos::create_mirror_view(avg_velocity);
-  Kokkos::deep_copy(mirror, avg_velocity);
+  auto mirror = Kokkos::create_mirror_view(this->avg_velocity);
+  Kokkos::deep_copy(mirror, this->avg_velocity);
   for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
       velocity_file
         << timestep << ","
@@ -210,8 +210,8 @@ void BoltzmanLattice::print_velocity(uint timestep) {
       << "uy" << std::endl;
   }
   // Print all ux for all y and a fix x = N/2
-  auto mirror = Kokkos::create_mirror_view(avg_velocity);
-  Kokkos::deep_copy(mirror, avg_velocity);
+  auto mirror = Kokkos::create_mirror_view(this->avg_velocity);
+  Kokkos::deep_copy(mirror, this->avg_velocity);
   for (int x = 0 + ghost_buffers; x < size_x - ghost_buffers; x++) {
     for (int y = 0 + ghost_buffers; y < size_y - ghost_buffers; y++) {
         velocity_file
@@ -231,7 +231,7 @@ void BoltzmanLattice::collision() {
     for (uint i = 0; i < NUM_DIRECTIONS; i++) {
       auto dir = static_cast<Direction>(i);
       double feq = calc_feq(x, y, static_cast<Direction>(dir));
-      distribution(x, y, dir) += omega * (feq - distribution(x, y, dir)) ;
+      this->distribution(x, y, dir) += omega * (feq - distribution(x, y, dir)) ;
     }
   });
 }
@@ -241,10 +241,10 @@ void BoltzmanLattice::streaming() {
     for (int i = 0; i < NUM_DIRECTIONS; i++) {
       auto dir = static_cast<Direction>(i);
       auto [new_x, new_y] = updated_coords(x, y, dir, size_x, size_y);
-      buffer(new_x,new_y,dir) = distribution(x, y, dir);
+      this->buffer(new_x,new_y,dir) = this->distribution(x, y, dir);
     }
   });
-  Kokkos::kokkos_swap(distribution, buffer);
+  Kokkos::kokkos_swap(this->distribution, this->buffer);
 }
 
 void BoltzmanLattice::bounce_back() {
@@ -254,19 +254,19 @@ void BoltzmanLattice::bounce_back() {
 
   Kokkos::parallel_for("bounce_back_x", policy_x, KOKKOS_LAMBDA (const int &x) {
       // Lower border
-      distribution(x, 1, UP)                    = distribution(x,     0, DOWN);
-      distribution(x, 1, UP_LEFT)               = distribution(x + 1, 0, DOWN_RIGHT);
-      distribution(x, 1, UP_RIGHT)              = distribution(x - 1, 0, DOWN_LEFT);
+      this->distribution(x, 1, UP)                    = distribution(x,     0, DOWN);
+      this->distribution(x, 1, UP_LEFT)               = distribution(x + 1, 0, DOWN_RIGHT);
+      this->distribution(x, 1, UP_RIGHT)              = distribution(x - 1, 0, DOWN_LEFT);
       
       // Upper border (sliding lid)
-      // Assume contant density 
+      // Assume contant this->density 
       // Use (c_s)^2 = 1/3 => 1/(c_s)^2 = 3, and 2 * 3 = 6
       const double partial_prod = 6 * rho;
 
       // We only have x velocity on the wall
-      distribution(x, size_y - 2, DOWN)         = distribution(x    , size_y - 1, UP)       - partial_prod * weight(UP)         * x_part(UP)        * wall_velocity;
-      distribution(x, size_y - 2, DOWN_LEFT)    = distribution(x + 1, size_y - 1, UP_RIGHT) - partial_prod * weight(UP_RIGHT)   * x_part(UP_RIGHT)  * wall_velocity;
-      distribution(x, size_y - 2, DOWN_RIGHT)   = distribution(x - 1, size_y - 1, UP_LEFT)  - partial_prod * weight(UP_LEFT)    * x_part(UP_LEFT)   * wall_velocity;
+      this->distribution(x, size_y - 2, DOWN)         = distribution(x    , size_y - 1, UP)       - partial_prod * weight(UP)         * x_part(UP)        * wall_velocity;
+      this->distribution(x, size_y - 2, DOWN_LEFT)    = distribution(x + 1, size_y - 1, UP_RIGHT) - partial_prod * weight(UP_RIGHT)   * x_part(UP_RIGHT)  * wall_velocity;
+      this->distribution(x, size_y - 2, DOWN_RIGHT)   = distribution(x - 1, size_y - 1, UP_LEFT)  - partial_prod * weight(UP_LEFT)    * x_part(UP_LEFT)   * wall_velocity;
       
   });
 
@@ -274,13 +274,13 @@ void BoltzmanLattice::bounce_back() {
   // (See cases for DOWN_LEFT and DOWN_RIGHT)
   Kokkos::parallel_for("bounce_back_y", policy_y, KOKKOS_LAMBDA (const int &y) {
       // Left border
-      distribution(1,           y, RIGHT)        = distribution(0,           y,          LEFT);
-      distribution(1,           y, UP_RIGHT)     = distribution(0,           y - 1,      DOWN_LEFT);
-      distribution(1,           y, DOWN_RIGHT)   = distribution(0,           y + 1,      UP_LEFT);
+      this->distribution(1,           y, RIGHT)        = distribution(0,           y,          LEFT);
+      this->distribution(1,           y, UP_RIGHT)     = distribution(0,           y - 1,      DOWN_LEFT);
+      this->distribution(1,           y, DOWN_RIGHT)   = distribution(0,           y + 1,      UP_LEFT);
       
       // Right border
-      distribution(size_x - 2,  y, LEFT)         = distribution(size_x - 1,  y,          RIGHT);
-      distribution(size_x - 2,  y, UP_LEFT)      = distribution(size_x - 1,  y - 1,      DOWN_RIGHT);
-      distribution(size_x - 2,  y, DOWN_LEFT)    = distribution(size_x - 1,  y + 1,      UP_RIGHT);
+      this->distribution(size_x - 2,  y, LEFT)         = distribution(size_x - 1,  y,          RIGHT);
+      this->distribution(size_x - 2,  y, UP_LEFT)      = distribution(size_x - 1,  y - 1,      DOWN_RIGHT);
+      this->distribution(size_x - 2,  y, DOWN_LEFT)    = distribution(size_x - 1,  y + 1,      UP_RIGHT);
   });
 }
