@@ -1,0 +1,45 @@
+#!/bin/bash -x
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:1
+#SBATCH --time=00:20:00
+#SBATCH -J lbm-gpu
+#SBATCH --mem=90gb
+#SBATCH --export=ALL
+#SBATCH --partition=dev_gpu_a100_il
+
+# Defaults for bwUniCluster's dev_gpu_a100_il partition (NVIDIA A100, dev/test
+# queue - short walltime, conservatively assumed 1 GPU/node here).
+# Check these against your actual allocation before submitting:
+#   scontrol show partition dev_gpu_a100_il        # confirm MaxTime and actual GPU count/node
+#   module avail cuda                              # confirm the exact CUDA module name/version below
+#   sacctmgr show assoc user=$USER format=account,partition
+# If the partition offers more than 1 GPU/node, bump --gres/--ntasks-per-node
+# together (they must match, one MPI rank per GPU).
+module load compiler/gnu mpi/openmpi devel/cuda/11.8
+
+echo "Running on ${SLURM_JOB_NUM_NODES} node(s) with ${SLURM_GPUS_ON_NODE:-1} GPU(s) per node."
+echo "Each node has ${SLURM_MEM_PER_NODE} of memory allocated to this job."
+
+N=10000
+SIZE=3000 # must divide evenly by each Cartesian dim: NP=1 -> dims=[1,1] -> no split needed
+lidv=0.03
+omega=1.0
+NP=${SLURM_NTASKS}
+
+time mpirun -np $NP ./build-cuda/executables/milestone06 --N=$N --size_x=$SIZE --size_y=$SIZE --lidv=$lidv --omega=$omega
+
+# Plotting is intentionally left out of this job: it needs matplotlib/ffmpeg
+# (often missing on compute nodes) and doesn't need GPU allocation. Once the
+# job finishes, run these on the login node:
+#   python3 ./data/combine_csvs.py --output ./data/06_velocity.csv
+#   python3 ./data/moving_lid.py $lidv $omega ./data/06_velocity.csv
+
+# NOTE: this only runs the prebuilt binary - it does not configure/build
+# build-cuda. Compute nodes typically have no internet access, so
+# CMake's FetchContent (Kokkos/Eigen) must run on the login node first:
+#   cmake -DCMAKE_CXX_COMPILER=$(pwd)/build/_deps/kokkos-src/bin/nvcc_wrapper \
+#         -DYALB_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON -B build-cuda
+#   cmake --build build-cuda -j 8
+# (Kokkos_ARCH_AMPERE80 targets the A100s on dev_gpu_a100_il - this must be
+# rebuilt from the VOLTA70 build if you're switching from gpu_4/gpu_8.)
