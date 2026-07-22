@@ -8,6 +8,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Off by default: this dev machine has no CUDA toolkit, and Kokkos' CUDA
+# backend needs a CUDA-aware compiler (e.g. nvcc_wrapper) set via
+# -DCMAKE_CXX_COMPILER=... on the *initial* configure, before project() below
+# picks a compiler. Enable with -DYALB_ENABLE_CUDA=ON on a GPU build machine,
+# and set -DKokkos_ARCH_<TARGET_GPU>=ON (or CMAKE_CUDA_ARCHITECTURES) for the
+# actual GPU architecture.
+option(YALB_ENABLE_CUDA "Build the CUDA backend for Kokkos GPU execution" OFF)
+
 # Dependencies: MPI, Eigen3, Kokkos
 find_package(MPI REQUIRED)
 if(MPI_CXX_FOUND)
@@ -41,6 +49,10 @@ if(NOT Kokkos_FOUND)
     set(Kokkos_ENABLE_TESTS OFF CACHE BOOL "Disable Kokkos tests" FORCE)
     set(Kokkos_ENABLE_EXAMPLES OFF CACHE BOOL "Disable Kokkos examples" FORCE)
     set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable OpenMP backend" FORCE)
+    if(YALB_ENABLE_CUDA)
+        set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable CUDA backend" FORCE)
+        set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "Enable CUDA lambda support" FORCE)
+    endif()
     FetchContent_MakeAvailable(kokkos)
 endif()
 

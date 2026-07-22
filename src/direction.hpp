@@ -1,3 +1,4 @@
+#pragma once
 #include <Kokkos_Core.hpp>
 #define NUM_DIRECTIONS 9
 
