@@ -29,18 +29,31 @@
 // the full column/row (including the corner cells); since every rank runs
 // the two phases in the same order, the Y phase forwards the corner data
 // the X phase just received, so diagonal ghost corners end up correct too.
+//
+// Boundary slices are packed into freshly-allocated (hence always
+// contiguous) staging buffers via a kernel rather than deep_copy'd directly
+// out of a Kokkos::subview: fixing one index of `distrib` gives a strided,
+// non-contiguous slice under LayoutLeft (Cuda's default View layout), and
+// Kokkos can't deep_copy a non-contiguous view across memory spaces that
+// share no common execution space (e.g. Cuda <-> Host).
 void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation) {
   auto distrib = simulation.distribution;
   int sx = static_cast<int>(simulation.size_x);
   int sy = static_cast<int>(simulation.size_y);
+  using Boundary = Kokkos::View<double**>;
   {
     int left  = neighbors_rank(rank, cart, LEFT);
     int right = neighbors_rank(rank, cart, RIGHT);
 
-    auto send_l = Kokkos::subview(distrib, 1,      Kokkos::ALL, Kokkos::ALL);
-    auto send_r = Kokkos::subview(distrib, sx - 2,  Kokkos::ALL, Kokkos::ALL);
-    auto recv_l = Kokkos::subview(distrib, 0,      Kokkos::ALL, Kokkos::ALL);
-    auto recv_r = Kokkos::subview(distrib, sx - 1,  Kokkos::ALL, Kokkos::ALL);
+    Boundary send_l("send_l", sy, NUM_DIRECTIONS), send_r("send_r", sy, NUM_DIRECTIONS);
+    Boundary recv_l("recv_l", sy, NUM_DIRECTIONS), recv_r("recv_r", sy, NUM_DIRECTIONS);
+
+    Kokkos::parallel_for("pack_x_ghost", Kokkos::RangePolicy<>(0, sy), KOKKOS_LAMBDA(const int y) {
+      for (int d = 0; d < NUM_DIRECTIONS; d++) {
+        send_l(y, d) = distrib(1,      y, d);
+        send_r(y, d) = distrib(sx - 2, y, d);
+      }
+    });
 
     auto send_l_h = Kokkos::create_mirror_view(send_l);
     auto send_r_h = Kokkos::create_mirror_view(send_r);
@@ -60,16 +73,28 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation)
 
     Kokkos::deep_copy(recv_l, recv_l_h);
     Kokkos::deep_copy(recv_r, recv_r_h);
+
+    Kokkos::parallel_for("unpack_x_ghost", Kokkos::RangePolicy<>(0, sy), KOKKOS_LAMBDA(const int y) {
+      for (int d = 0; d < NUM_DIRECTIONS; d++) {
+        distrib(0,      y, d) = recv_l(y, d);
+        distrib(sx - 1, y, d) = recv_r(y, d);
+      }
+    });
   }
 
   {
     int up   = neighbors_rank(rank, cart, UP);
     int down = neighbors_rank(rank, cart, DOWN);
 
-    auto send_u = Kokkos::subview(distrib, Kokkos::ALL, sy - 2, Kokkos::ALL);
-    auto send_d = Kokkos::subview(distrib, Kokkos::ALL, 1,      Kokkos::ALL);
-    auto recv_u = Kokkos::subview(distrib, Kokkos::ALL, sy - 1,  Kokkos::ALL);
-    auto recv_d = Kokkos::subview(distrib, Kokkos::ALL, 0,      Kokkos::ALL);
+    Boundary send_u("send_u", sx, NUM_DIRECTIONS), send_d("send_d", sx, NUM_DIRECTIONS);
+    Boundary recv_u("recv_u", sx, NUM_DIRECTIONS), recv_d("recv_d", sx, NUM_DIRECTIONS);
+
+    Kokkos::parallel_for("pack_y_ghost", Kokkos::RangePolicy<>(0, sx), KOKKOS_LAMBDA(const int x) {
+      for (int d = 0; d < NUM_DIRECTIONS; d++) {
+        send_u(x, d) = distrib(x, sy - 2, d);
+        send_d(x, d) = distrib(x, 1,      d);
+      }
+    });
 
     auto send_u_h = Kokkos::create_mirror_view(send_u);
     auto send_d_h = Kokkos::create_mirror_view(send_d);
@@ -89,15 +114,25 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation)
 
     Kokkos::deep_copy(recv_u, recv_u_h);
     Kokkos::deep_copy(recv_d, recv_d_h);
+
+    Kokkos::parallel_for("unpack_y_ghost", Kokkos::RangePolicy<>(0, sx), KOKKOS_LAMBDA(const int x) {
+      for (int d = 0; d < NUM_DIRECTIONS; d++) {
+        distrib(x, sy - 1, d) = recv_u(x, d);
+        distrib(x, 0,      d) = recv_d(x, d);
+      }
+    });
   }
 }
 
-void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print) {
+void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print, const bool &is_root) {
   int rank;
   MPI_Comm_rank(cart, &rank);
 
+  int coords[2], cart_dims[2], cart_periods[2];
+  MPI_Cart_get(cart, 2, cart_dims, cart_periods, coords);
+
   BoltzmanLattice simulation(size_x, size_y, GHOST_BUFFERS, lidv, omega, INIT_SPEED, INIT_SPEED, DENSITY_RHO);
-  simulation.open_files("./data/06");
+  simulation.open_files("./data/06_p" + std::to_string(coords[0]) + "_" + std::to_string(coords[1]));
 
   // Init ghost buffers to 0;
   // Prolly useless, since streaming comes before, but yeah, wont take long anyways
@@ -108,9 +143,9 @@ void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &s
   if (print)
     simulation.print_velocity(0);
 
-  PRINT_TIMESTEP(0, timesteps);
+  if (is_root) PRINT_TIMESTEP(0, timesteps);
   for (int i = 1; i <= timesteps; ++i) {
-    if (i % 100 == 0) {
+    if (is_root && i % 100 == 0) {
       printf("\r");
       PRINT_TIMESTEP(i, timesteps);
     }
@@ -122,10 +157,10 @@ void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &s
     // The four neighbors; with periodic boundaries every rank has all four
     exchange_ghost_layer(cart, rank, simulation);
 
-    if (print && i % 20 == 0) 
+    if (print && i % 20 == 0)
       simulation.print_velocity(i);
   }
-  printf("\n");
+  if (is_root) printf("\n");
 
   if (PRINT_STEADY && !print) {
       simulation.print_velocity(timesteps);
@@ -141,7 +176,8 @@ void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &s
 int main(int argc, char* argv[]) {
   double omega              = DEFAULT_OMEGA;
   double lid_velocity       = DEFAULT_LIDV;
-  uint size_x, size_y       = DEFAULT_SIZE;
+  uint size_x               = DEFAULT_SIZE;
+  uint size_y               = DEFAULT_SIZE;
   uint timesteps            = DEFAULT_TIMESTEPS;
   bool print                = DEFAULT_PRINT;
   for (int i = 0; i < argc; i++) {
@@ -153,10 +189,10 @@ int main(int argc, char* argv[]) {
       lid_velocity = std::stod(arg.substr(7));
     }
     if (arg.rfind("--size_x=", 0) == 0) {
-      size_x = std::stoi(arg.substr(7));
+      size_x = std::stoi(arg.substr(9));
     }
     if (arg.rfind("--size_y=", 0) == 0) {
-      size_y = std::stoi(arg.substr(7));
+      size_y = std::stoi(arg.substr(9));
     }
     if (arg.rfind("--N=", 0) == 0) {
       timesteps = std::stoi(arg.substr(4));
@@ -165,12 +201,17 @@ int main(int argc, char* argv[]) {
       print = true;
     }
   }
-  printf("Omega: %f, Lid Velocity: %f, L: %d x %d, N: %d\n", omega, lid_velocity, size_x, size_y, timesteps);
-
   MPI_Init(&argc, &argv);
   Kokkos::initialize(argc, argv);
 
-  printf("Reynolds Number: %f\n", (lid_velocity * size_x) / ( (1/omega - 0.5)/3));
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  bool is_root = world_rank == 0;
+
+  if (is_root) {
+    printf("Omega: %f, Lid Velocity: %f, L: %d x %d, N: %d\n", omega, lid_velocity, size_x, size_y, timesteps);
+    printf("Reynolds Number: %f\n", (lid_velocity * size_x) / ( (1/omega - 0.5)/3));
+  }
   Kokkos::Timer timer;
   Kokkos::fence();
 
@@ -187,10 +228,12 @@ int main(int argc, char* argv[]) {
 
   int sublattice_size_x =  size_x / dims[0];
   int sublattice_size_y =  size_y / dims[1];
-  run_sublattice_simulation(cart, sublattice_size_x, sublattice_size_y, omega, lid_velocity, timesteps, print);
+  run_sublattice_simulation(cart, sublattice_size_x, sublattice_size_y, omega, lid_velocity, timesteps, print, is_root);
 
-  double runtime = timer.seconds();
-  PRINT_MLUPS(runtime, size_x, size_y, timesteps);
+  double local_runtime = timer.seconds();
+  double runtime;
+  MPI_Reduce(&local_runtime, &runtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  if (is_root) PRINT_MLUPS(runtime, size_x, size_y, timesteps);
 
   Kokkos::finalize();
   MPI_Finalize();

@@ -8,11 +8,10 @@ format_code = "%Y_%m_%d_%Hh%Mm"
 now = datetime.now()
 date_prefix = now.strftime(format_code)
 
-CSV_FILE = "./data/05_velocity.csv"
-
 args = sys.argv[1:]
 LID_VELOCITY = float(args[0]) if len(args) >= 1 else 0.3
 OMEGA = float(args[1]) if len(args) >= 2 else 1.0
+CSV_FILE = args[2] if len(args) >= 3 else "./data/05_velocity.csv"
 
 OUTPUT_FILE = f"../archive/{date_prefix}_{LID_VELOCITY}_moving_lid"
 

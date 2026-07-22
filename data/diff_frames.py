@@ -4,8 +4,19 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import sys
+from datetime import datetime
 
-CSV_FILE = "./data/05_velocity.csv"
+format_code = "%Y_%m_%d_%Hh%Mm"
+now = datetime.now()
+date_prefix = now.strftime(format_code)
+
+args = sys.argv[1:]
+LID_VELOCITY = float(args[0]) if len(args) >= 1 else 0.3
+OMEGA = float(args[1]) if len(args) >= 2 else 1.0
+CSV_FILE = args[2] if len(args) >= 3 else "./data/05_velocity.csv"
+
+OUTPUT_FILE = f"../archive/{date_prefix}_{LID_VELOCITY}_diff_frames.png"
 
 df = pd.read_csv(CSV_FILE)
 timesteps = sorted(df['timestep'].unique())
@@ -38,12 +49,13 @@ speed_t = np.sqrt(ux_t**2 + uy_t**2)
 speed_tp = np.sqrt(ux_tp**2 + uy_tp**2)
 dspeed = speed_t - speed_tp
 
+
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
 ax = axes[0, 0]
 strm = ax.streamplot(X_grid, Y_grid, ux_t, uy_t, color=speed_t, cmap='viridis',
                      density=1.5, linewidth=1)
-ax.set_title(f't = {t}')
+ax.set_title(f't = {t} ' + f'Lid velocity = {LID_VELOCITY}, Ω = {OMEGA}')
 ax.set_xlabel('x / L')
 ax.set_ylabel('y / L')
 ax.set_xlim(0, 1)
@@ -83,5 +95,5 @@ ax.set_aspect('equal')
 plt.colorbar(contour, ax=ax, label='|Δu|')
 
 fig.tight_layout()
-fig.savefig('../archive/diff_frames.png', dpi=150)
-print("Saved ../archive/diff_frames.png")
+fig.savefig(OUTPUT_FILE, dpi=150)
+print(f"Saved {OUTPUT_FILE}")
