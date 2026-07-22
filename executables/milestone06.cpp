@@ -124,12 +124,15 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation)
   }
 }
 
-void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print, const bool &is_root) {
+double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print, const bool &is_root) {
   int rank;
   MPI_Comm_rank(cart, &rank);
 
   int coords[2], cart_dims[2], cart_periods[2];
   MPI_Cart_get(cart, 2, cart_dims, cart_periods, coords);
+
+  Kokkos::Timer timer;
+  Kokkos::fence();
 
   BoltzmanLattice simulation(size_x, size_y, GHOST_BUFFERS, lidv, omega, INIT_SPEED, INIT_SPEED, DENSITY_RHO);
   simulation.open_files("./data/06_p" + std::to_string(coords[0]) + "_" + std::to_string(coords[1]));
@@ -161,6 +164,7 @@ void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &s
       simulation.print_velocity(i);
   }
   if (is_root) printf("\n");
+  double runtime = timer.seconds();
 
   if (PRINT_STEADY && !print) {
       simulation.print_velocity(timesteps);
@@ -171,6 +175,7 @@ void run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &s
       simulation.collision_fused();
       simulation.print_velocity(timesteps + 1);
   }
+  return runtime;
 }
 
 int main(int argc, char* argv[]) {
@@ -212,9 +217,6 @@ int main(int argc, char* argv[]) {
     printf("Omega: %f, Lid Velocity: %f, L: %d x %d, N: %d\n", omega, lid_velocity, size_x, size_y, timesteps);
     printf("Reynolds Number: %f\n", (lid_velocity * size_x) / ( (1/omega - 0.5)/3));
   }
-  Kokkos::Timer timer;
-  Kokkos::fence();
-
   int mpi_size;
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
@@ -228,9 +230,8 @@ int main(int argc, char* argv[]) {
 
   int sublattice_size_x =  size_x / dims[0];
   int sublattice_size_y =  size_y / dims[1];
-  run_sublattice_simulation(cart, sublattice_size_x, sublattice_size_y, omega, lid_velocity, timesteps, print, is_root);
+  double local_runtime = run_sublattice_simulation(cart, sublattice_size_x, sublattice_size_y, omega, lid_velocity, timesteps, print, is_root);
 
-  double local_runtime = timer.seconds();
   double runtime;
   MPI_Reduce(&local_runtime, &runtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   if (is_root) PRINT_MLUPS(runtime, size_x, size_y, timesteps);
