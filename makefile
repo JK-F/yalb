@@ -9,7 +9,7 @@ initgpu:
 	      -DKokkos_ENABLE_CUDA=ON \
 	      -DCMAKE_CUDA_COMPILER=nvcc \
 	      -DKokkos_ENABLE_CUDA_LAMBDA=ON \
-	      -B build
+	      -B build-cuda
 run2:
 	./build/executables/milestone02
 run3:
