@@ -1,12 +1,13 @@
 #!/bin/bash -x
-#SBATCH --nodes=1
+#SBATCH --nodes=3
 #SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=12
 #SBATCH --gres=gpu:4
 #SBATCH --time=00:05:00
 #SBATCH -J lbm-gpu
 #SBATCH --mem=0
 #SBATCH --export=ALL
-#SBATCH --partition=gpu_a100_il
+#SBATCH --partition=gpu_a100_short
 # together (they must match, one MPI rank per GPU).
 
 module load compiler/gnu mpi/openmpi devel/cuda/11.8
@@ -14,10 +15,14 @@ module load compiler/gnu mpi/openmpi devel/cuda/11.8
 echo "Running on ${SLURM_JOB_NUM_NODES} node(s) with ${SLURM_GPUS_ON_NODE:-1} GPU(s) per node."
 echo "Each node has ${SLURM_MEM_PER_NODE} of memory allocated to this job."
 
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+export OMP_PROC_BIND=spread
+export OMP_PLACES=threads
+
 N=10000
-SIZE=3000 # must divide evenly by each Cartesian dim: NP=4 -> dims=[2,2] -> 1500 per subdomain
+SIZE=3000 # must divide evenly by each Cartesian dim: NP=12 -> dims=[4,3] -> 750x1000 per subdomain
 lidv=0.03
 omega=1.0
 NP=${SLURM_NTASKS}
 
-time mpirun -np $NP --map-by numa --bind-to numa --report-bindings ./build-cuda/executables/milestone06 --N=$N --size_x=$SIZE --size_y=$SIZE --lidv=$lidv --omega=$omega
+time mpirun -np $NP --map-by ppr:4:node:pe=${SLURM_CPUS_PER_TASK} --bind-to core --report-bindings ./build-cuda/executables/milestone06 --N=$N --size_x=$SIZE --size_y=$SIZE --lidv=$lidv --omega=$omega
