@@ -2,12 +2,11 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:4
-#SBATCH --time=00:20:00
+#SBATCH --time=00:05:00
 #SBATCH -J lbm-gpu
 #SBATCH --mem=0
 #SBATCH --export=ALL
-#SBATCH --partition=dev_gpu_a100_il
-#SBATCH --exclude=uc2n902 # NUMA domain 1 (cores 16-31,80-95) faulty: taskset -c 16-31 fails with EINVAL despite sysfs reporting the cores online
+#SBATCH --partition=gpu_a100_il
 # together (they must match, one MPI rank per GPU).
 
 module load compiler/gnu mpi/openmpi devel/cuda/11.8
