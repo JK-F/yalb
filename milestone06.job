@@ -25,4 +25,4 @@ lidv=0.03
 omega=1.0
 NP=${SLURM_NTASKS}
 
-time mpirun -np $NP --map-by ppr:4:node:pe=${SLURM_CPUS_PER_TASK} --bind-to core --report-bindings ./build-cuda/executables/milestone06 --N=$N --size_x=$SIZE --size_y=$SIZE --lidv=$lidv --omega=$omega
+time srun --cpu-bind=cores --mpi=pmix ./build-cuda/executables/milestone06 --N=$N --size_x=$SIZE --size_y=$SIZE --lidv=$lidv --omega=$omega
