@@ -24,29 +24,57 @@
 #define DEFAULT_LIDV 0.1
 #define DEFAULT_OMEGA 1.5
 
+// Ghost-exchange staging buffers, allocated once per rank and reused across
+// all timesteps. exchange_ghost_layer used to allocate these fresh on every
+// call (8 device Views + 8 host mirrors per timestep), which meant ~160k
+// cudaMalloc/cudaFree pairs over a 10000-step run -- device allocation is a
+// synchronizing call, so that overhead was dwarfing the actual per-step
+// compute/communication cost and capping scaling as rank count went up.
+using Boundary = Kokkos::View<double**>;
+using BoundaryHost = Boundary::HostMirror;
+
+struct GhostExchangeBuffers {
+  Boundary send_l, send_r, recv_l, recv_r;
+  Boundary send_u, send_d, recv_u, recv_d;
+  BoundaryHost send_l_h, send_r_h, recv_l_h, recv_r_h;
+  BoundaryHost send_u_h, send_d_h, recv_u_h, recv_d_h;
+
+  GhostExchangeBuffers(int sx, int sy)
+    : send_l("send_l", sy, NUM_DIRECTIONS), send_r("send_r", sy, NUM_DIRECTIONS),
+      recv_l("recv_l", sy, NUM_DIRECTIONS), recv_r("recv_r", sy, NUM_DIRECTIONS),
+      send_u("send_u", sx, NUM_DIRECTIONS), send_d("send_d", sx, NUM_DIRECTIONS),
+      recv_u("recv_u", sx, NUM_DIRECTIONS), recv_d("recv_d", sx, NUM_DIRECTIONS),
+      send_l_h(Kokkos::create_mirror_view(send_l)), send_r_h(Kokkos::create_mirror_view(send_r)),
+      recv_l_h(Kokkos::create_mirror_view(recv_l)), recv_r_h(Kokkos::create_mirror_view(recv_r)),
+      send_u_h(Kokkos::create_mirror_view(send_u)), send_d_h(Kokkos::create_mirror_view(send_d)),
+      recv_u_h(Kokkos::create_mirror_view(recv_u)), recv_d_h(Kokkos::create_mirror_view(recv_d))
+  {}
+};
+
 // Exchanges the 1-cell ghost layer of `simulation.distribution` with the
 // four Cartesian neighbors. X is exchanged before Y and each message spans
 // the full column/row (including the corner cells); since every rank runs
 // the two phases in the same order, the Y phase forwards the corner data
 // the X phase just received, so diagonal ghost corners end up correct too.
 //
-// Boundary slices are packed into freshly-allocated (hence always
-// contiguous) staging buffers via a kernel rather than deep_copy'd directly
-// out of a Kokkos::subview: fixing one index of `distrib` gives a strided,
+// Boundary slices are packed into staging buffers (owned by `buffers`, see
+// GhostExchangeBuffers) via a kernel rather than deep_copy'd directly out of
+// a Kokkos::subview: fixing one index of `distrib` gives a strided,
 // non-contiguous slice under LayoutLeft (Cuda's default View layout), and
 // Kokkos can't deep_copy a non-contiguous view across memory spaces that
 // share no common execution space (e.g. Cuda <-> Host).
-void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation) {
+void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation, GhostExchangeBuffers &buffers) {
   auto distrib = simulation.distribution;
   int sx = static_cast<int>(simulation.size_x);
   int sy = static_cast<int>(simulation.size_y);
-  using Boundary = Kokkos::View<double**>;
   {
     int left  = neighbors_rank(rank, cart, LEFT);
     int right = neighbors_rank(rank, cart, RIGHT);
 
-    Boundary send_l("send_l", sy, NUM_DIRECTIONS), send_r("send_r", sy, NUM_DIRECTIONS);
-    Boundary recv_l("recv_l", sy, NUM_DIRECTIONS), recv_r("recv_r", sy, NUM_DIRECTIONS);
+    auto &send_l = buffers.send_l; auto &send_r = buffers.send_r;
+    auto &recv_l = buffers.recv_l; auto &recv_r = buffers.recv_r;
+    auto &send_l_h = buffers.send_l_h; auto &send_r_h = buffers.send_r_h;
+    auto &recv_l_h = buffers.recv_l_h; auto &recv_r_h = buffers.recv_r_h;
 
     Kokkos::parallel_for("pack_x_ghost", Kokkos::RangePolicy<>(0, sy), KOKKOS_LAMBDA(const int y) {
       for (int d = 0; d < NUM_DIRECTIONS; d++) {
@@ -54,11 +82,6 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation)
         send_r(y, d) = distrib(sx - 2, y, d);
       }
     });
-
-    auto send_l_h = Kokkos::create_mirror_view(send_l);
-    auto send_r_h = Kokkos::create_mirror_view(send_r);
-    auto recv_l_h = Kokkos::create_mirror_view(recv_l);
-    auto recv_r_h = Kokkos::create_mirror_view(recv_r);
 
     Kokkos::deep_copy(send_l_h, send_l);
     Kokkos::deep_copy(send_r_h, send_r);
@@ -86,8 +109,10 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation)
     int up   = neighbors_rank(rank, cart, UP);
     int down = neighbors_rank(rank, cart, DOWN);
 
-    Boundary send_u("send_u", sx, NUM_DIRECTIONS), send_d("send_d", sx, NUM_DIRECTIONS);
-    Boundary recv_u("recv_u", sx, NUM_DIRECTIONS), recv_d("recv_d", sx, NUM_DIRECTIONS);
+    auto &send_u = buffers.send_u; auto &send_d = buffers.send_d;
+    auto &recv_u = buffers.recv_u; auto &recv_d = buffers.recv_d;
+    auto &send_u_h = buffers.send_u_h; auto &send_d_h = buffers.send_d_h;
+    auto &recv_u_h = buffers.recv_u_h; auto &recv_d_h = buffers.recv_d_h;
 
     Kokkos::parallel_for("pack_y_ghost", Kokkos::RangePolicy<>(0, sx), KOKKOS_LAMBDA(const int x) {
       for (int d = 0; d < NUM_DIRECTIONS; d++) {
@@ -95,11 +120,6 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation)
         send_d(x, d) = distrib(x, 1,      d);
       }
     });
-
-    auto send_u_h = Kokkos::create_mirror_view(send_u);
-    auto send_d_h = Kokkos::create_mirror_view(send_d);
-    auto recv_u_h = Kokkos::create_mirror_view(recv_u);
-    auto recv_d_h = Kokkos::create_mirror_view(recv_d);
 
     Kokkos::deep_copy(send_u_h, send_u);
     Kokkos::deep_copy(send_d_h, send_d);
@@ -146,6 +166,8 @@ double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint 
   if (print)
     simulation.print_velocity(0);
 
+  GhostExchangeBuffers ghost_buffers(static_cast<int>(simulation.size_x), static_cast<int>(simulation.size_y));
+
   if (is_root) PRINT_TIMESTEP(0, timesteps);
   for (int i = 1; i <= timesteps; ++i) {
     if (is_root && i % 100 == 0) {
@@ -158,7 +180,7 @@ double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint 
     simulation.collision_fused();
 
     // The four neighbors; with periodic boundaries every rank has all four
-    exchange_ghost_layer(cart, rank, simulation);
+    exchange_ghost_layer(cart, rank, simulation, ghost_buffers);
 
     if (print && i % 20 == 0)
       simulation.print_velocity(i);
