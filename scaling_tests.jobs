@@ -15,6 +15,10 @@ module load compiler/gnu mpi/openmpi devel/cuda/11.8
 
 echo "Running on ${SLURM_JOB_NUM_NODES} node(s) with ${SLURM_GPUS_ON_NODE:-1} GPU(s) per node."
 
+export OMP_NUM_THREADS=1 # each rank just drives one GPU; SLURM_CPUS_PER_TASK isn't set without an explicit --cpus-per-task
+export OMP_PROC_BIND=spread
+export OMP_PLACES=threads
+
 BIN=./build-cuda/executables/milestone06
 N=1000            # timesteps per run; kept low since the sweep runs 10 configs in one job
 lidv=0.03
