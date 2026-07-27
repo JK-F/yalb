@@ -143,7 +143,7 @@ void exchange_ghost_layer(MPI_Comm &cart, BoltzmanLattice &simulation, GhostExch
   }
 }
 
-double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print, const bool &print_info) {
+double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print, const bool &print_info, const bool &quiet) {
   int coords[2], cart_dims[2], cart_periods[2];
   MPI_Cart_get(cart, 2, cart_dims, cart_periods, coords);
 
@@ -159,14 +159,14 @@ double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint 
   simulation.feq_distrib();
 
   // print initial
-  if (print)
+  if (print && !quiet)
     simulation.print_velocity(0);
 
   GhostExchangeBuffers ghost_buffers(static_cast<int>(simulation.size_x), static_cast<int>(simulation.size_y));
 
-  if (print_info) PRINT_TIMESTEP(0, timesteps);
+  if (print_info && !quiet) PRINT_TIMESTEP(0, timesteps);
   for (int i = 1; i <= timesteps; ++i) {
-    if (print_info && i % 100 == 0) {
+    if (print_info && !quiet && i % 100 == 0) {
       printf("\r");
       PRINT_TIMESTEP(i, timesteps);
     }
@@ -178,16 +178,16 @@ double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint 
     // The four neighbors; with periodic boundaries every rank has all four
     exchange_ghost_layer(cart, simulation, ghost_buffers);
 
-    if (print && i % 20 == 0)
+    if (print && !quiet && i % 20 == 0)
       simulation.print_velocity(i);
   }
-  if (print_info) printf("\n");
+  if (print_info && !quiet) printf("\n");
   double runtime = timer.seconds();
 
-  if (PRINT_STEADY && !print) {
+  if (PRINT_STEADY && !print && !quiet) {
       simulation.print_velocity(timesteps);
   }
-  if (PRINT_STEADY) {
+  if (PRINT_STEADY && !quiet) {
       simulation.streaming();
       simulation.bounce_back();
       simulation.collision_fused();
@@ -203,6 +203,7 @@ int main(int argc, char* argv[]) {
   uint size_y               = DEFAULT_SIZE;
   uint timesteps            = DEFAULT_TIMESTEPS;
   bool print                = DEFAULT_PRINT;
+  bool quiet                = false;
   for (int i = 0; i < argc; i++) {
     auto arg = std::string(argv[i]);
     if (arg.rfind("--omega=", 0) == 0) {
@@ -223,6 +224,9 @@ int main(int argc, char* argv[]) {
     if (arg.rfind("--print", 0) == 0) {
       print = true;
     }
+    if (arg.rfind("--quiet", 0) == 0) {
+      quiet = true;
+    }
   }
   MPI_Init(&argc, &argv);
   Kokkos::initialize(argc, argv);
@@ -231,7 +235,7 @@ int main(int argc, char* argv[]) {
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   bool is_root = world_rank == 0;
 
-  if (is_root) {
+  if (is_root && !quiet) {
     printf("Omega: %f, Lid Velocity: %f, L: %d x %d, N: %d\n", omega, lid_velocity, size_x, size_y, timesteps);
     printf("Reynolds Number: %f\n", (lid_velocity * size_x) / ( (1/omega - 0.5)/3));
   }
@@ -248,11 +252,10 @@ int main(int argc, char* argv[]) {
 
   int sublattice_size_x =  size_x / dims[0];
   int sublattice_size_y =  size_y / dims[1];
-  double local_runtime = run_sublattice_simulation(cart, sublattice_size_x, sublattice_size_y, omega, lid_velocity, timesteps, print, is_root);
+  double local_runtime = run_sublattice_simulation(cart, sublattice_size_x, sublattice_size_y, omega, lid_velocity, timesteps, print, is_root, quiet);
 
   double runtime;
   MPI_Reduce(&local_runtime, &runtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-  if (is_root) printf("PRINT_MLUPS(%f, %d, %d, %d);", runtime, size_x, size_y, timesteps);
   if (is_root) PRINT_MLUPS(runtime, size_x, size_y, timesteps);
 
   Kokkos::finalize();

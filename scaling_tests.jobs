@@ -1,0 +1,58 @@
+#!/bin/bash -x
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=12
+#SBATCH --gres=gpu:4
+#SBATCH --time=01:00:00
+#SBATCH -J lbm-scaling
+#SBATCH --mem=0
+#SBATCH --export=ALL
+#SBATCH --partition=gpu_a100_short
+# Allocates the max footprint (16 GPUs / 4 nodes) up front; each sweep point
+# below runs as its own srun step using only a subset of that allocation, so
+# one job covers the whole GPU-count sweep instead of one submission per size.
+
+module load compiler/gnu mpi/openmpi devel/cuda/11.8
+
+echo "Running on ${SLURM_JOB_NUM_NODES} node(s) with ${SLURM_GPUS_ON_NODE:-1} GPU(s) per node."
+
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+export OMP_PROC_BIND=spread
+export OMP_PLACES=threads
+
+BIN=./build-cuda/executables/milestone06
+N=1000            # timesteps per run; kept low since the sweep runs 10 configs in one job
+lidv=0.03
+omega=1.0
+GPUS_PER_NODE=4
+GPU_COUNTS=(1 2 4 8 16)
+
+run_step () {
+  local np=$1 size_x=$2 size_y=$3
+  local nodes=$(( (np + GPUS_PER_NODE - 1) / GPUS_PER_NODE ))
+  local tasks_per_node=$(( np < GPUS_PER_NODE ? np : GPUS_PER_NODE ))
+  echo "=== NP=${np} (nodes=${nodes}) size=${size_x}x${size_y} ==="
+  time srun --nodes=${nodes} --ntasks=${np} --ntasks-per-node=${tasks_per_node} \
+       --cpu-bind=cores --mpi=pmix \
+       ${BIN} --N=$N --size_x=${size_x} --size_y=${size_y} --lidv=$lidv --omega=$omega --quiet
+}
+
+echo "#### STRONG SCALING (fixed problem size, growing GPU count) ####"
+# 3000 divides evenly by every Cartesian factor MPI_Dims_create hands out for
+# NP in {1,2,4,8,16} (dims end up {1,1},{2,1},{2,2},{4,2},{4,4}).
+STRONG_SIZE=3000
+for NP in "${GPU_COUNTS[@]}"; do
+  run_step "$NP" "$STRONG_SIZE" "$STRONG_SIZE"
+done
+
+echo "#### WEAK SCALING (per-GPU subdomain held ~constant at 750x750) ####"
+# Global size = LOCAL * dims_per_axis, using the same dims MPI_Dims_create is
+# expected to choose for each NP (see strong-scaling comment above).
+LOCAL=750
+declare -A WEAK_DIMS_X=( [1]=1 [2]=2 [4]=2 [8]=4 [16]=4 )
+declare -A WEAK_DIMS_Y=( [1]=1 [2]=1 [4]=2 [8]=2 [16]=4 )
+for NP in "${GPU_COUNTS[@]}"; do
+  size_x=$(( LOCAL * WEAK_DIMS_X[$NP] ))
+  size_y=$(( LOCAL * WEAK_DIMS_Y[$NP] ))
+  run_step "$NP" "$size_x" "$size_y"
+done
