@@ -11,7 +11,7 @@
 #define PRINT_STEADY true
 #define DEFAULT_TIMESTEPS 2000
 #define PRINT_TIMESTEP(i, timesteps) printf("Bolzman Lattice Timestep %05d / %05d", i, timesteps)
-#define PRINT_MLUPS(runtime, X, Y, N) printf("Done computing after %fs\nMLUPS: %f\n", runtime, static_cast<double>(X * Y * N) / (runtime * 1000000.) )
+#define PRINT_MLUPS(runtime, X, Y, N) printf("Done computing after %fs\nMLUPS: %f\n", runtime, ((X * Y) / (runtime * 1000000.)) * N)
 
 #define DEFAULT_SIZE 30
 #define SIZE_X DEFAULT_SIZE
