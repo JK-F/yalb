@@ -1,6 +1,5 @@
 #include <Kokkos_Core.hpp>
 #include "boltzman.hpp"
-#include "mpi_util.hpp"
 #include <cstdio>
 #include <string>
 #include <sys/types.h>
@@ -63,13 +62,13 @@ struct GhostExchangeBuffers {
 // non-contiguous slice under LayoutLeft (Cuda's default View layout), and
 // Kokkos can't deep_copy a non-contiguous view across memory spaces that
 // share no common execution space (e.g. Cuda <-> Host).
-void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation, GhostExchangeBuffers &buffers) {
+void exchange_ghost_layer(MPI_Comm &cart, BoltzmanLattice &simulation, GhostExchangeBuffers &buffers) {
   auto distrib = simulation.distribution;
   int sx = static_cast<int>(simulation.size_x);
   int sy = static_cast<int>(simulation.size_y);
   {
-    int left  = neighbors_rank(rank, cart, LEFT);
-    int right = neighbors_rank(rank, cart, RIGHT);
+    int left, right;
+    MPI_Cart_shift(cart, 0, 1, &left, &right);
 
     auto &send_l = buffers.send_l; auto &send_r = buffers.send_r;
     auto &recv_l = buffers.recv_l; auto &recv_r = buffers.recv_r;
@@ -106,8 +105,8 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation,
   }
 
   {
-    int up   = neighbors_rank(rank, cart, UP);
-    int down = neighbors_rank(rank, cart, DOWN);
+    int up, down;
+    MPI_Cart_shift(cart, 1, 1, &down, &up);
 
     auto &send_u = buffers.send_u; auto &send_d = buffers.send_d;
     auto &recv_u = buffers.recv_u; auto &recv_d = buffers.recv_d;
@@ -144,10 +143,7 @@ void exchange_ghost_layer(MPI_Comm &cart, int rank, BoltzmanLattice &simulation,
   }
 }
 
-double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print, const bool &is_root) {
-  int rank;
-  MPI_Comm_rank(cart, &rank);
-
+double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint &size_y, const double &omega, const double &lidv ,const uint &timesteps, const bool &print, const bool &print_info) {
   int coords[2], cart_dims[2], cart_periods[2];
   MPI_Cart_get(cart, 2, cart_dims, cart_periods, coords);
 
@@ -168,9 +164,9 @@ double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint 
 
   GhostExchangeBuffers ghost_buffers(static_cast<int>(simulation.size_x), static_cast<int>(simulation.size_y));
 
-  if (is_root) PRINT_TIMESTEP(0, timesteps);
+  if (print_info) PRINT_TIMESTEP(0, timesteps);
   for (int i = 1; i <= timesteps; ++i) {
-    if (is_root && i % 100 == 0) {
+    if (print_info && i % 100 == 0) {
       printf("\r");
       PRINT_TIMESTEP(i, timesteps);
     }
@@ -180,12 +176,12 @@ double run_sublattice_simulation(MPI_Comm &cart, const uint &size_x, const uint 
     simulation.collision_fused();
 
     // The four neighbors; with periodic boundaries every rank has all four
-    exchange_ghost_layer(cart, rank, simulation, ghost_buffers);
+    exchange_ghost_layer(cart, simulation, ghost_buffers);
 
     if (print && i % 20 == 0)
       simulation.print_velocity(i);
   }
-  if (is_root) printf("\n");
+  if (print_info) printf("\n");
   double runtime = timer.seconds();
 
   if (PRINT_STEADY && !print) {
@@ -256,6 +252,7 @@ int main(int argc, char* argv[]) {
 
   double runtime;
   MPI_Reduce(&local_runtime, &runtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  if (is_root) printf("PRINT_MLUPS(%f, %d, %d, %d);", runtime, size_x, size_y, timesteps);
   if (is_root) PRINT_MLUPS(runtime, size_x, size_y, timesteps);
 
   Kokkos::finalize();
