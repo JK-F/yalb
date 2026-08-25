@@ -1,186 +1,59 @@
 ---
 marp: true
 math: katex
-paginate: true
-size: 16:9
-style: |
-  section {
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    background: #ffffff;
-    color: #1a1a1a;
-    padding: 56px 70px;
-  }
-  h1 {
-    color: #0b3d5c;
-    font-size: 1.65em;
-    border-bottom: 3px solid #0b3d5c;
-    padding-bottom: 0.2em;
-    margin-top: 0;
-  }
-  h2 { color: #0b3d5c; }
-  h3 { color: #14618c; }
-  code, pre {
-    font-family: 'Fira Code', 'SF Mono', Consolas, monospace;
-  }
-  code {
-    background: #eef2f6;
-    color: #0b3d5c;
-    border-radius: 4px;
-  }
-  pre {
-    background: #0b3d5c;
-    color: #eef2f6;
-    border-radius: 8px;
-  }
-  section.title {
-    background: #0b3d5c;
-    color: #ffffff;
-  }
-  section.title h1 {
-    color: #ffffff;
-    border: none;
-    font-size: 2.4em;
-  }
-  section.title h3 { color: #9fd0ee; font-weight: normal; }
-  section.title p { color: #cfe4f2; }
-  .grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 28px;
-    align-items: center;
-  }
-  .small { font-size: 0.75em; }
-  .center { text-align: center; }
-  table { font-size: 0.85em; }
-  .placeholder {
-    border: 2px dashed #b8442a;
-    background: #fdf1ee;
-    color: #b8442a;
-    border-radius: 8px;
-    padding: 10px 18px;
-    font-weight: bold;
-  }
-  .tag {
-    display: inline-block;
-    background: #14618c;
-    color: white;
-    border-radius: 4px;
-    padding: 2px 10px;
-    font-size: 0.6em;
-    letter-spacing: 0.04em;
-    margin-bottom: 6px;
-  }
-  footer { color: #9fb3c0; font-size: 0.55em; }
-  section { font-size: 0.92em; }
-  ul, ol { margin: 0.3em 0; padding-left: 1.1em; }
-  li { margin: 0.22em 0; }
-  section > p { margin: 0.4em 0; }
-  .d2q9 {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    background: #0b3d5c;
-    border-radius: 10px;
-    padding: 14px;
-  }
-  .d2q9 div {
-    background: #14618c;
-    color: #ffffff;
-    font-size: 1.7em;
-    text-align: center;
-    padding: 14px 0;
-    border-radius: 6px;
-  }
-  .d2q9 div.center-cell { background: #0b3d5c; border: 2px solid #14618c; }
-  .mpigrid {
-    display: grid;
-    grid-template-columns: 1.3fr 0.5fr 1.3fr 0.5fr 1.3fr;
-    grid-template-rows: auto auto auto;
-    align-items: center;
-    justify-items: center;
-    gap: 4px;
-  }
-  .mpigrid .rank {
-    background: #14618c;
-    color: white;
-    border-radius: 6px;
-    padding: 10px 6px;
-    font-size: 0.8em;
-    font-weight: bold;
-    width: 100%;
-    text-align: center;
-    box-sizing: border-box;
-  }
-  .mpigrid .arrow { color: #b8442a; font-size: 1.3em; font-weight: bold; }
-footer: 'HPC with Accelerators — Summer 2026'
 ---
-
 <!-- _class: title -->
 <!-- _paginate: false -->
 <!-- _footer: "" -->
 
-# A GPU-Accelerated Lattice Boltzmann Solver
+## A GPU-Accelerated Lattice Boltzmann Solver
 
-### D2Q9, Kokkos, and distributed-memory MPI
+#### D2Q9 with Kokkos and MPI
 
-<br>
-
-**Julius Fischer**
-HPC with Accelerators — Colloquium, Summer 2026
+###### Julius Fischer · 226-08-26
+HPC with Accelerators
 
 ---
 
-## What is Lattice Boltzmann?
+# Roadmap: Lattice Boltzmann
+- Our goal is a fluid simulation
 
-<div class="grid2">
-<div>
-
-- Simulates fluid flow by tracking **particle distribution functions** $f_i(\mathbf{x}, t)$ on a fixed lattice, instead of solving Navier–Stokes directly
-- Each timestep: particles **stream** along lattice directions, then **collide** toward local equilibrium
-- Macroscopic $\rho$, $\mathbf{u}$ recovered as moments of $f_i$
-- **Local, data-parallel** → great fit for GPUs + MPI
-
-</div>
-<div class="center">
-
-**D2Q9 lattice** — 9 velocity directions
-
-<div class="d2q9">
-<div>↖</div><div>↑</div><div>↗</div>
-<div>←</div><div class="center-cell">●</div><div>→</div>
-<div>↙</div><div>↓</div><div>↘</div>
-</div>
-
-weights: $\tfrac{4}{9}$ (rest), $\tfrac{1}{9}$ (axes), $\tfrac{1}{36}$ (diag.)
-
-</div>
-</div>
+1. Streaming
+- Makes the fluid move
+2. Boundary Conditions / Bounce-back & Wrap-Around
+- Lets the fluid interact with its container
+3. Collision
+- 'Adds the phyisics' to the simulation
 
 ---
+# Discretization
+- D2Q9 - 2 Dimensions, 9 Directions/ Channels
+- Datastructure: `Kokkos::View` 
+- Agnostic to hardware: CPU / GPU
 
-## Algorithm: Stream → Collide → Bounce-back
+```
+typedef Kokkos::View<double***>     DISTRIB;
+```
 
-Every timestep, for every lattice node:
+---
+# Algorithm: Streaming
+<!-- footer: MILESTONE 02–03 -->
 
-1. **Streaming** — propagate $f_i$ to the neighbor along direction $i$
-2. **Bounce-back** — enforce solid-wall / moving-lid boundaries
-3. **Collision (BGK)** — relax toward equilibrium:
+- Simple for loop:
+    - For every value: *push* it in its direction 
+- Contains wrap around logic
+    - Branchless Implementation:
+     `int new_x = x + x_part(dir);`
+     `new_x += (new_x < 0) * size_x;`
+---
+# Algorithm: Bounce-back
 
-$$
-f_i(\mathbf{x}, t+1) = f_i(\mathbf{x}, t) + \omega\left[f_i^{eq}(\mathbf{x},t) - f_i(\mathbf{x},t)\right]
-$$
-
-$$
-f_i^{eq} = w_i \, \rho \left(1 + 3\,\mathbf{e}_i\!\cdot\!\mathbf{u} + \tfrac{9}{2}(\mathbf{e}_i\!\cdot\!\mathbf{u})^2 - \tfrac{3}{2}|\mathbf{u}|^2\right)
-$$
-
-Kinematic viscosity is set entirely by the relaxation rate: $\;\nu = \frac{1}{3}\left(\frac{1}{\omega} - \frac{1}{2}\right)$
-
-<p class="small">Implemented in <code>src/boltzman.cpp</code>: <code>streaming()</code>, <code>bounce_back()</code>, <code>collision()</code> / <code>calc_feq()</code> in <code>src/direction.hpp</code>.</p>
 
 ---
 
 ## Kokkos-based implementation
+
+<span class="tag">on-node parallelization</span>
 
 <div class="grid2">
 <div>
@@ -192,15 +65,13 @@ Kinematic viscosity is set entirely by the relaxation rate: $\;\nu = \frac{1}{3}
 </div>
 <div>
 
-```cpp
-Kokkos::parallel_for(
+<pre class="code-static"><code>Kokkos::parallel_for(
   "CollisionFused", all_nodes_policy(),
   KOKKOS_LAMBDA (const int &x, const int &y) {
-    // load f_i, reduce -> rho, u
+    // load f_i, reduce -&gt; rho, u
     // build f_i^eq, relax, write back
     // all in registers, one pass
-});
-```
+});</code></pre>
 
 <p class="small">
 Build: <code>cmake -B build-cuda -DYALB_ENABLE_CUDA=ON
@@ -229,12 +100,14 @@ Both pass to within `1e-5` — the discrete Boltzmann update conserves mass and 
 
 ## Validation: shear-wave decay
 
+<span class="tag">MILESTONE 04</span>
+
 <div class="grid2">
 <div>
 
-- Initialize a sinusoidal velocity perturbation $u_x(y) = \varepsilon \sin(ky)$, no forcing, and let it decay
+- Initialize a sinusoidal velocity perturbation $u_x(y) = \varepsilon \sin(ky)$, $k=2\pi/L$, no forcing, and let it decay (`shear_wave_init()`)
 - Analytically, the amplitude decays as $e^{-\nu k^2 t}$ — a direct, independent measurement of the solver's viscosity
-- Measured decay of the simulated amplitude (right panel, two wavenumbers $k$ and $2k$) matches the analytic prediction from $\omega$
+- Fit $\ln|u_x|_{max}$ vs. timestep from the simulation: $\nu_{meas} = 0.0558$ vs. $\nu_{analytic} = \frac{1}{3}(\frac{1}{\omega}-\frac{1}{2}) = 0.0556$ at $\omega=1.5$ — **0.4% error**
 
 </div>
 <div class="center">
@@ -244,11 +117,13 @@ Both pass to within `1e-5` — the discrete Boltzmann update conserves mass and 
 </div>
 </div>
 
-<p class="small">Milestone 04 · <code>shear_wave_init()</code> in <code>src/boltzman.cpp</code></p>
+<p class="small">Data from an actual <code>milestone04</code> run (<code>data/04_velocity_slice.csv</code>), not a reference implementation.</p>
 
 ---
 
 ## Validation: lid-driven cavity
+
+<span class="tag">MILESTONE 05</span>
 
 <div class="grid2">
 <div>
@@ -270,6 +145,8 @@ Both pass to within `1e-5` — the discrete Boltzmann update conserves mass and 
 ---
 
 ## Scaling out: MPI domain decomposition
+
+<span class="tag">MILESTONE 06</span>
 
 <div class="grid2">
 <div>
@@ -297,6 +174,8 @@ Both pass to within `1e-5` — the discrete Boltzmann update conserves mass and 
 ---
 
 ## Performance & scaling
+
+<span class="tag">MILESTONE 06</span>
 
 - Metric: **MLUPS** — Million Lattice Updates/s $= \dfrac{X \cdot Y \cdot N_{steps}}{t_{run}\times 10^6}$
 
