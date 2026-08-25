@@ -4,6 +4,10 @@
 data/*.csv
 data/*.mp4
 data/*.gif
+data
+*/*.pdf
+*/*.html
+report-out
 
 # -------------- Below are genereated exclusion patterns ----------------------
 

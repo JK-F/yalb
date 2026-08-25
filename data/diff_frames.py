@@ -50,7 +50,11 @@ speed_tp = np.sqrt(ux_tp**2 + uy_tp**2)
 dspeed = speed_t - speed_tp
 
 
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+fig, axes = plt.subplots(1, 2, figsize=(6, 5))
+fig2, axes2 = plt.subplots(1, 2, figsize=(12, 5))
+
+axes = np.vstack([axes, axes2])
+
 
 ax = axes[0, 0]
 strm = ax.streamplot(X_grid, Y_grid, ux_t, uy_t, color=speed_t, cmap='viridis',
@@ -61,7 +65,7 @@ ax.set_ylabel('y / L')
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.set_aspect('equal')
-plt.colorbar(strm.lines, ax=ax, label='|u|')
+fig.colorbar(strm.lines, ax=ax, label='|u|')
 
 ax = axes[0, 1]
 strm = ax.streamplot(X_grid, Y_grid, ux_tp, uy_tp, color=speed_tp, cmap='viridis',
@@ -72,7 +76,7 @@ ax.set_ylabel('y / L')
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.set_aspect('equal')
-plt.colorbar(strm.lines, ax=ax, label='|u|')
+fig.colorbar(strm.lines, ax=ax, label='|u|')
 
 ax = axes[1, 0]
 contour = ax.contourf(X_grid, Y_grid, dspeed, levels=50, cmap='RdBu_r')
@@ -82,7 +86,7 @@ ax.set_ylabel('y / L')
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.set_aspect('equal')
-plt.colorbar(contour, ax=ax, label='Δ|u|')
+fig2.colorbar(contour, ax=ax, label='Δ|u|')
 
 ax = axes[1, 1]
 contour = ax.contourf(X_grid, Y_grid, du_mag, levels=50, cmap='hot')
@@ -92,8 +96,11 @@ ax.set_ylabel('y / L')
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.set_aspect('equal')
-plt.colorbar(contour, ax=ax, label='|Δu|')
+fig2.colorbar(contour, ax=ax, label='|Δu|')
 
 fig.tight_layout()
-fig.savefig(OUTPUT_FILE, dpi=150)
-print(f"Saved {OUTPUT_FILE}")
+fig2.tight_layout()
+
+output_dir, output_name = OUTPUT_FILE.rsplit("/", 1)
+fig.savefig(f"{output_dir}/1_{output_name}", dpi=150)
+print(f"Saved 1_{output_name} in {output_dir}")

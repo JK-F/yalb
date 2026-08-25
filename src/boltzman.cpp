@@ -45,7 +45,7 @@ void BoltzmanLattice::shear_wave_init(const double &eps, const double &rho) {
   auto sy = size_y;
   Kokkos::parallel_for("INIT_STEP", all_nodes_policy(), KOKKOS_LAMBDA (const int &x, const int &y) {
     for (uint d = 0; d < NUM_DIRECTIONS; d++) {
-      double k = 2 * Kokkos::numbers::pi / sy;
+      double k = 4 * Kokkos::numbers::pi / sy;
 
       dens(x, y) = rho;
       velocity(x, y, X_DIR) = eps * Kokkos::sin(k * y);
